@@ -17,8 +17,6 @@ const (
 	StateLoggedOut   SessionState = "logged_out"
 	StateCheckpoint  SessionState = "checkpoint"
 	State2FARequired SessionState = "2fa_required"
-
-	sessionCheckTimeout = 10 * time.Second
 )
 
 // facebookURL is the target URL for session checks.
