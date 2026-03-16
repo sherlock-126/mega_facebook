@@ -329,31 +329,12 @@ func makeIntervalLimiters() map[ActionType]uberrl.Limiter {
 	return limiters
 }
 
-// intervalRate returns the per-second rate for uber-go/ratelimit based on
-// spreading the established-tier daily limit evenly across an 8-hour active window.
-// This prevents bursting all actions in a short period.
-func intervalRate(action ActionType) int {
-	// Use established limits as the base for interval calculation.
-	dailyLimit := defaultLimits[AccountEstablished][action]
-	if dailyLimit == 0 {
-		return 1
-	}
-
-	// Spread across 8 active hours. Calculate seconds per action.
-	activeSeconds := 8 * 3600 // 8 hours
-	secsPerAction := activeSeconds / dailyLimit
-
-	// uber-go/ratelimit wants requests per second. For very slow rates
-	// (e.g., 1 action per 1440 seconds), we use 1 per second since
-	// uber-go/ratelimit minimum is 1/s. The daily counter handles the
-	// actual limiting; the interval limiter just prevents rapid bursts.
-	_ = secsPerAction
-
-	// For Facebook actions, even the highest daily limit (25/day) means
-	// roughly 1 action per 19 minutes over 8 hours. uber-go/ratelimit
-	// operates at per-second granularity, so we set all to 1/s (effectively
-	// no burst restriction beyond 1 per second). The daily counter is the
-	// primary enforcement mechanism.
+// intervalRate returns the per-second rate for uber-go/ratelimit.
+// Facebook daily limits (max 25/day) translate to roughly 1 action per 19 minutes
+// over an 8-hour window. uber-go/ratelimit operates at per-second granularity,
+// so we set all action types to 1/s — preventing rapid-fire bursts while letting
+// the daily counter handle the actual limit enforcement.
+func intervalRate(_ ActionType) int {
 	return 1
 }
 
