@@ -29,6 +29,16 @@ func TestConnect_ConnectionRefused(t *testing.T) {
 	}
 }
 
+func TestStealthPage_NilBrowser(t *testing.T) {
+	_, err := StealthPage(nil)
+	if err == nil {
+		t.Fatal("expected error for nil browser")
+	}
+	if got := err.Error(); got != "cannot create stealth page: browser is nil" {
+		t.Fatalf("unexpected error: %s", got)
+	}
+}
+
 func TestContainsLoginPath(t *testing.T) {
 	tests := []struct {
 		url  string

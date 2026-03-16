@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/proto"
+	"github.com/sherlock-126/mega_facebook/internal/browser"
 )
 
 // SessionState represents the authentication state of a Facebook session.
@@ -57,19 +57,12 @@ func ClassifyURL(url string) SessionState {
 	return ""
 }
 
-// CheckSessionState opens a page in the browser, navigates to Facebook,
+// CheckSessionState opens a stealth page in the browser, navigates to Facebook,
 // and determines the current session state.
-func CheckSessionState(browser *rod.Browser) (SessionState, error) {
-	page, err := browser.Page(proto.TargetCreateTarget{URL: ""})
+func CheckSessionState(b *rod.Browser) (SessionState, error) {
+	page, err := browser.StealthPage(b)
 	if err != nil {
-		pages, pErr := browser.Pages()
-		if pErr != nil {
-			return "", fmt.Errorf("failed to get browser pages: %w", pErr)
-		}
-		page = pages.First()
-		if page == nil {
-			return "", fmt.Errorf("no pages available in browser")
-		}
+		return "", fmt.Errorf("failed to open stealth page for session check: %w", err)
 	}
 	defer page.Close()
 
