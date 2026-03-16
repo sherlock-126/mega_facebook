@@ -3,7 +3,6 @@ package browser
 import (
 	"fmt"
 	"log/slog"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"time"
@@ -11,36 +10,38 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/sherlock-126/mega_facebook/internal/humanize"
 	"github.com/sherlock-126/mega_facebook/internal/selectors"
 )
 
 const (
-	// Delay ranges for human-like behavior (per project rules).
-	clickDelayMin    = 800  // ms
-	clickDelayMax    = 2500 // ms
-	pageLoadDelayMin = 1500 // ms
-	pageLoadDelayMax = 4000 // ms
-	typeDelayMin     = 50   // ms per character
-	typeDelayMax     = 150  // ms per character
-
 	// defaultElementTimeout is the default timeout for waiting on elements.
 	defaultElementTimeout = 10 * time.Second
 )
 
 // Automation provides human-like browser automation primitives on a stealth page.
+// It uses the humanize package for all behavioral anti-detection logic:
+// randomized delays, Bezier-curve mouse movements, and typing with typos.
 type Automation struct {
 	page           *rod.Page
+	humanizer      *humanize.Humanizer
 	elementTimeout time.Duration
 }
 
 // NewAutomation creates an Automation instance wrapping a stealth page.
 // The page should be created via StealthPage() before passing here.
+// Internally creates a humanize.Humanizer for mouse movement and typing.
 func NewAutomation(page *rod.Page) (*Automation, error) {
 	if page == nil {
 		return nil, fmt.Errorf("cannot create automation: page is nil")
 	}
+	h, err := humanize.New(page)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create automation: %w", err)
+	}
 	return &Automation{
 		page:           page,
+		humanizer:      h,
 		elementTimeout: defaultElementTimeout,
 	}, nil
 }
@@ -67,7 +68,7 @@ func (a *Automation) Navigate(url string) error {
 		return fmt.Errorf("page load timed out for %s: %w", url, err)
 	}
 
-	delay := pageLoadDelay()
+	delay := humanize.PageLoadDelay()
 	slog.Info("page loaded, waiting", "url", url, "delay_ms", delay.Milliseconds())
 	time.Sleep(delay)
 
@@ -76,6 +77,7 @@ func (a *Automation) Navigate(url string) error {
 
 // Click finds an element by the given CSS selector, scrolls it into view, and clicks it.
 // Uses semantic selectors (aria-label, role, data-testid) per project conventions.
+// Moves the mouse to the element center via Bezier curve before clicking.
 // Applies a randomized human-like delay after clicking (800-2500ms).
 func (a *Automation) Click(selector string) error {
 	if selector == "" {
@@ -93,11 +95,22 @@ func (a *Automation) Click(selector string) error {
 		return fmt.Errorf("failed to scroll element into view %q: %w", selector, err)
 	}
 
+	// Move mouse to element center using Bezier curve for natural movement.
+	shape, err := el.Shape()
+	if err != nil {
+		slog.Warn("could not get element shape, clicking directly", "selector", selector, "error", err)
+	} else if len(shape.Quads) > 0 {
+		center := shape.OnePointInside()
+		if moveErr := a.humanizer.MoveTo(center.X, center.Y); moveErr != nil {
+			slog.Warn("mouse move failed, clicking directly", "selector", selector, "error", moveErr)
+		}
+	}
+
 	if err := el.Click(proto.InputMouseButtonLeft, 1); err != nil {
 		return fmt.Errorf("failed to click element %q: %w", selector, err)
 	}
 
-	delay := clickDelay()
+	delay := humanize.ClickDelay()
 	slog.Info("clicked", "selector", selector, "delay_ms", delay.Milliseconds())
 	time.Sleep(delay)
 
@@ -105,7 +118,8 @@ func (a *Automation) Click(selector string) error {
 }
 
 // Type finds an element by selector, focuses it, and types the given text
-// with randomized per-character delays (50-150ms) to simulate human typing.
+// with humanized per-character delays and occasional typos with corrections.
+// Uses humanize.PlanTyping for realistic typing simulation.
 func (a *Automation) Type(selector, text string) error {
 	if selector == "" {
 		return fmt.Errorf("cannot type: empty selector")
@@ -125,21 +139,42 @@ func (a *Automation) Type(selector, text string) error {
 		return fmt.Errorf("failed to scroll element into view %q: %w", selector, err)
 	}
 
-	// Click to focus the element
+	// Click to focus the element.
 	if err := el.Click(proto.InputMouseButtonLeft, 1); err != nil {
 		return fmt.Errorf("failed to focus element %q for typing: %w", selector, err)
 	}
 
-	// Type each character with a randomized delay
-	for _, ch := range text {
-		if err := el.Type(input.Key(ch)); err != nil {
+	// Generate and execute typing plan with typos and corrections.
+	plan := humanize.PlanTyping(text)
+
+	for _, action := range plan.Actions {
+		time.Sleep(action.Delay)
+
+		if err := typeRune(el, action.Char); err != nil {
 			return fmt.Errorf("failed to type into %q: %w", selector, err)
 		}
-		time.Sleep(typeDelay())
+
+		// If typo, execute correction sequence (backspace + correct char).
+		if action.IsTypo {
+			for _, correction := range action.Correction {
+				time.Sleep(correction.Delay)
+				if err := typeRune(el, correction.Char); err != nil {
+					return fmt.Errorf("failed to type correction into %q: %w", selector, err)
+				}
+			}
+		}
 	}
 
 	slog.Info("typed", "selector", selector, "length", len(text))
 	return nil
+}
+
+// typeRune types a single rune into an element. Handles backspace specially.
+func typeRune(el *rod.Element, ch rune) error {
+	if ch == '\b' {
+		return el.Type(input.Backspace)
+	}
+	return el.Type(input.Key(ch))
 }
 
 // Screenshot captures a full-page screenshot and saves it as a PNG file.
@@ -213,20 +248,3 @@ func (a *Automation) FindByText(text, tag string) (*rod.Element, error) {
 	return el, nil
 }
 
-// clickDelay returns a randomized duration between 800-2500ms for use after clicks.
-func clickDelay() time.Duration {
-	ms := clickDelayMin + rand.Intn(clickDelayMax-clickDelayMin+1)
-	return time.Duration(ms) * time.Millisecond
-}
-
-// pageLoadDelay returns a randomized duration between 1500-4000ms for use after page loads.
-func pageLoadDelay() time.Duration {
-	ms := pageLoadDelayMin + rand.Intn(pageLoadDelayMax-pageLoadDelayMin+1)
-	return time.Duration(ms) * time.Millisecond
-}
-
-// typeDelay returns a randomized duration between 50-150ms for use between keystrokes.
-func typeDelay() time.Duration {
-	ms := typeDelayMin + rand.Intn(typeDelayMax-typeDelayMin+1)
-	return time.Duration(ms) * time.Millisecond
-}
