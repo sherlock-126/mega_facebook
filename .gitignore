@@ -1,0 +1,22 @@
+# VibeDev auto-generated (do not commit)
+CLAUDE.md
+.vibedev-status.json
+.vibedev-prompt.md
+
+# Binary
+mega_facebook
+*.exe
+
+# Go
+vendor/
+*.test
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
