@@ -119,3 +119,16 @@ export {
   type BlockedUserSummary,
   type BlockStatusResponse,
 } from './block.schema';
+
+export {
+  PresenceStatusEnum,
+  PresenceResponseSchema,
+  BatchPresenceQuerySchema,
+  PresenceUpdateEventSchema,
+  PresenceSubscribeSchema,
+  type PresenceStatus,
+  type PresenceResponse,
+  type BatchPresenceQuery,
+  type PresenceUpdateEvent,
+  type PresenceSubscribeInput,
+} from './presence.schema';

@@ -1,9 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@mega/ui';
 import { cn } from '@mega/ui';
 import type { ConversationListItem } from '@mega/shared';
+import { usePresence } from '../../lib/presence-context';
+import { OnlineIndicator } from '../presence/OnlineIndicator';
 
 interface ConversationItemProps {
   conversation: ConversationListItem;
@@ -37,6 +39,12 @@ function formatTime(date: Date): string {
 
 export function ConversationItem({ conversation, isActive, onClick }: ConversationItemProps) {
   const { participant, lastMessage, unreadCount } = conversation;
+  const { presenceMap, trackUsers } = usePresence();
+  const presence = presenceMap.get(participant.userId);
+
+  useEffect(() => {
+    trackUsers([participant.userId]);
+  }, [participant.userId, trackUsers]);
 
   return (
     <button
@@ -47,12 +55,19 @@ export function ConversationItem({ conversation, isActive, onClick }: Conversati
         isActive && 'bg-blue-50 hover:bg-blue-50',
       )}
     >
-      <Avatar className="h-12 w-12 shrink-0">
-        {participant.avatarUrl ? (
-          <AvatarImage src={participant.avatarUrl} alt={participant.displayName || ''} />
-        ) : null}
-        <AvatarFallback>{getInitials(participant.displayName)}</AvatarFallback>
-      </Avatar>
+      <div className="relative shrink-0">
+        <Avatar className="h-12 w-12">
+          {participant.avatarUrl ? (
+            <AvatarImage src={participant.avatarUrl} alt={participant.displayName || ''} />
+          ) : null}
+          <AvatarFallback>{getInitials(participant.displayName)}</AvatarFallback>
+        </Avatar>
+        <OnlineIndicator
+          isOnline={presence?.status === 'online'}
+          size="sm"
+          className="absolute bottom-0 right-0"
+        />
+      </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">

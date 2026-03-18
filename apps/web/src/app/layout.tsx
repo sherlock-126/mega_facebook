@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '../lib/auth-context';
 import { SocketProvider } from '../lib/socket-context';
+import { PresenceProvider } from '../lib/presence-context';
 import { AppNavbar } from '../components/layout/AppNavbar';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -18,8 +19,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <AuthProvider>
           <SocketProvider>
-            <AppNavbar />
-            {children}
+            <PresenceProvider>
+              <AppNavbar />
+              {children}
+            </PresenceProvider>
           </SocketProvider>
         </AuthProvider>
       </body>

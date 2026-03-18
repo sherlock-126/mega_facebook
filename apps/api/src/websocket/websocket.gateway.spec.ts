@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
+import { EventEmitter2 } from 'eventemitter2';
 import { WebsocketGateway } from './websocket.gateway';
 import { RedisService } from '../redis/redis.service';
 
@@ -8,6 +9,7 @@ describe('WebsocketGateway', () => {
 
   const mockJwtService = { verify: jest.fn() };
   const mockRedisService = { isJtiBlacklisted: jest.fn() };
+  const mockEventEmitter = { emit: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -15,6 +17,7 @@ describe('WebsocketGateway', () => {
         WebsocketGateway,
         { provide: JwtService, useValue: mockJwtService },
         { provide: RedisService, useValue: mockRedisService },
+        { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
     }).compile();
 

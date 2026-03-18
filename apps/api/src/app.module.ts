@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { HealthModule } from './health/health.module';
@@ -20,6 +21,7 @@ import { NotificationModule } from './notification/notification.module';
 import { BlockModule } from './block/block.module';
 import { ElasticsearchModule } from './elasticsearch/elasticsearch.module';
 import { SearchModule } from './search/search.module';
+import { PresenceModule } from './presence/presence.module';
 import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.guard';
 
 @Module({
@@ -29,6 +31,7 @@ import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.
       envFilePath: '../../.env',
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
+    EventEmitterModule.forRoot(),
     PrismaModule,
     RedisModule,
     ElasticsearchModule,
@@ -47,6 +50,7 @@ import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.
     NotificationModule,
     BlockModule,
     SearchModule,
+    PresenceModule,
   ],
   providers: [
     {
