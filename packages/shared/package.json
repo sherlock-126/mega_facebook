@@ -9,6 +9,9 @@
     "lint": "eslint \"src/**/*.ts\" --fix",
     "clean": "rm -rf dist"
   },
+  "dependencies": {
+    "zod": "^3.22.0"
+  },
   "devDependencies": {
     "tsup": "^8.0.0",
     "typescript": "^5.3.3"
