@@ -9,6 +9,7 @@ import { CoverPhoto } from '../../../components/profile/CoverPhoto';
 import { ProfileAvatar } from '../../../components/profile/ProfileAvatar';
 import { ProfileHeader } from '../../../components/profile/ProfileHeader';
 import { ProfileTabs } from '../../../components/profile/ProfileTabs';
+import { FriendRequestButton } from '../../../components/friendship/FriendRequestButton';
 
 export default function PublicProfilePage() {
   const params = useParams<{ userId: string }>();
@@ -78,8 +79,13 @@ export default function PublicProfilePage() {
         isOwnProfile={false}
         onUpdated={() => {}}
       />
-      <ProfileHeader profile={profile} isOwnProfile={false} />
-      <ProfileTabs profile={profile} isOwnProfile={false} />
+      <div className="flex items-center justify-between px-4 sm:px-6">
+        <div className="flex-1">
+          <ProfileHeader profile={profile} isOwnProfile={false} />
+        </div>
+        <FriendRequestButton userId={params.userId} />
+      </div>
+      <ProfileTabs profile={profile} isOwnProfile={false} userId={params.userId} />
     </div>
   );
 }

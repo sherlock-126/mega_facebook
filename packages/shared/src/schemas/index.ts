@@ -21,3 +21,15 @@ export {
   type Profile,
   type PublicProfile,
 } from './profile.schema';
+
+export {
+  FriendshipStatusEnum,
+  FriendshipSchema,
+  FriendshipStatusResponseSchema,
+  FriendSummarySchema,
+  FriendRequestSummarySchema,
+  type FriendshipStatusResponse,
+  type FriendSummary,
+  type FriendRequestSummary,
+  type Friendship,
+} from './friendship.schema';

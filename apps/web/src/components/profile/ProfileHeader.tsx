@@ -30,11 +30,13 @@ export function ProfileHeader({ profile, isOwnProfile, onEditClick }: ProfileHea
           </p>
         )}
       </div>
-      {isOwnProfile && (
-        <Button variant="outline" size="sm" onClick={onEditClick}>
-          Edit profile
-        </Button>
-      )}
+      <div className="flex gap-2">
+        {isOwnProfile && (
+          <Button variant="outline" size="sm" onClick={onEditClick}>
+            Edit profile
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

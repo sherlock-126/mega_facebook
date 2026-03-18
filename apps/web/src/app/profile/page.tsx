@@ -53,7 +53,7 @@ export default function MyProfilePage() {
         isOwnProfile
         onEditClick={() => setEditOpen(true)}
       />
-      <ProfileTabs profile={user} isOwnProfile />
+      <ProfileTabs profile={user} isOwnProfile userId={user.userId} />
       <EditProfileModal
         open={editOpen}
         onOpenChange={setEditOpen}

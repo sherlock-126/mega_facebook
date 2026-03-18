@@ -9,9 +9,10 @@ import type { Profile, PublicProfile } from '@mega/shared';
 interface ProfileTabsProps {
   profile: Profile | PublicProfile;
   isOwnProfile: boolean;
+  userId?: string;
 }
 
-export function ProfileTabs({ profile, isOwnProfile }: ProfileTabsProps) {
+export function ProfileTabs({ profile, isOwnProfile, userId }: ProfileTabsProps) {
   return (
     <div className="border-t px-4 sm:px-6">
       <Tabs defaultValue="posts">
@@ -24,7 +25,7 @@ export function ProfileTabs({ profile, isOwnProfile }: ProfileTabsProps) {
           <PostsTab />
         </TabsContent>
         <TabsContent value="friends">
-          <FriendsTab />
+          <FriendsTab userId={userId} isOwnProfile={isOwnProfile} />
         </TabsContent>
         <TabsContent value="about">
           <AboutTab profile={profile} isOwnProfile={isOwnProfile} />

@@ -1,4 +1,4 @@
-import { PrismaClient, UserStatus, Gender } from '@prisma/client';
+import { PrismaClient, UserStatus, Gender, FriendshipStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -60,6 +60,51 @@ async function main() {
     });
     console.log(`  Test user: ${email} (with profile)`);
   }
+
+  // Seed friendships between test users
+  const allUsers = await prisma.user.findMany({ orderBy: { email: 'asc' } });
+  const userMap = new Map(allUsers.map((u) => [u.email, u]));
+
+  const user1 = userMap.get('user1@mega.dev')!;
+  const user2 = userMap.get('user2@mega.dev')!;
+  const user3 = userMap.get('user3@mega.dev')!;
+  const user4 = userMap.get('user4@mega.dev')!;
+
+  // user1 and user2 are friends
+  await prisma.friendship.upsert({
+    where: { requesterId_addresseeId: { requesterId: user1.id, addresseeId: user2.id } },
+    update: {},
+    create: {
+      requesterId: user1.id,
+      addresseeId: user2.id,
+      status: FriendshipStatus.ACCEPTED,
+    },
+  });
+  console.log('  Friendship: user1 <-> user2 (ACCEPTED)');
+
+  // user1 and user3 are friends
+  await prisma.friendship.upsert({
+    where: { requesterId_addresseeId: { requesterId: user1.id, addresseeId: user3.id } },
+    update: {},
+    create: {
+      requesterId: user1.id,
+      addresseeId: user3.id,
+      status: FriendshipStatus.ACCEPTED,
+    },
+  });
+  console.log('  Friendship: user1 <-> user3 (ACCEPTED)');
+
+  // user4 sent pending request to user1
+  await prisma.friendship.upsert({
+    where: { requesterId_addresseeId: { requesterId: user4.id, addresseeId: user1.id } },
+    update: {},
+    create: {
+      requesterId: user4.id,
+      addresseeId: user1.id,
+      status: FriendshipStatus.PENDING,
+    },
+  });
+  console.log('  Friendship: user4 -> user1 (PENDING)');
 
   console.log('Seeding complete.');
 }
