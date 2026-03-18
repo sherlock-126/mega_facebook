@@ -1,4 +1,4 @@
-import { PrismaClient, UserStatus, Gender, FriendshipStatus, PostVisibility } from '@prisma/client';
+import { PrismaClient, UserStatus, Gender, FriendshipStatus, PostVisibility, ReactionType, ReactionTargetType } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -160,6 +160,46 @@ async function main() {
     console.log('  Post: user4 - public post');
   } else {
     console.log('  Posts already exist, skipping post seeding');
+  }
+
+  // Seed reactions and comments
+  const existingReactionCount = await prisma.reaction.count();
+  if (existingReactionCount === 0) {
+    const posts = await prisma.post.findMany({ orderBy: { createdAt: 'asc' } });
+    if (posts.length > 0) {
+      // Reactions on first post
+      await prisma.reaction.create({
+        data: { userId: user2.id, targetType: ReactionTargetType.POST, targetId: posts[0].id, type: ReactionType.LIKE },
+      });
+      await prisma.reaction.create({
+        data: { userId: user3.id, targetType: ReactionTargetType.POST, targetId: posts[0].id, type: ReactionType.LOVE },
+      });
+      await prisma.reaction.create({
+        data: { userId: user4.id, targetType: ReactionTargetType.POST, targetId: posts[0].id, type: ReactionType.HAHA },
+      });
+      console.log('  Reactions: 3 reactions on first post');
+
+      // Comments on first post
+      const comment1 = await prisma.comment.create({
+        data: { postId: posts[0].id, userId: user2.id, content: 'Welcome to the platform! Great first post!' },
+      });
+      const comment2 = await prisma.comment.create({
+        data: { postId: posts[0].id, userId: user3.id, content: 'Excited to have you here!' },
+      });
+      // Reply to comment1
+      await prisma.comment.create({
+        data: { postId: posts[0].id, userId: user1.id, parentId: comment1.id, content: 'Thank you! Happy to be here!' },
+      });
+      console.log('  Comments: 2 top-level + 1 reply on first post');
+
+      // Reaction on a comment
+      await prisma.reaction.create({
+        data: { userId: user1.id, targetType: ReactionTargetType.COMMENT, targetId: comment2.id, type: ReactionType.LIKE },
+      });
+      console.log('  Reactions: 1 reaction on comment');
+    }
+  } else {
+    console.log('  Reactions/comments already exist, skipping');
   }
 
   console.log('Seeding complete.');

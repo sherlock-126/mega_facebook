@@ -12,6 +12,8 @@ import { FriendshipModule } from './friendship/friendship.module';
 import { UserSearchModule } from './user-search/user-search.module';
 import { PostModule } from './post/post.module';
 import { FeedModule } from './feed/feed.module';
+import { ReactionModule } from './reaction/reaction.module';
+import { CommentModule } from './comment/comment.module';
 import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.guard';
 
 @Module({
@@ -31,6 +33,8 @@ import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.
     UserSearchModule,
     PostModule,
     FeedModule,
+    ReactionModule,
+    CommentModule,
   ],
   providers: [
     {

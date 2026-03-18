@@ -17,6 +17,12 @@ describe('PostService', () => {
       count: jest.fn(),
       update: jest.fn(),
     },
+    reaction: {
+      groupBy: jest.fn().mockResolvedValue([]),
+    },
+    comment: {
+      count: jest.fn().mockResolvedValue(0),
+    },
     $transaction: jest.fn((fn: any) => fn(mockPrisma)),
   };
 
