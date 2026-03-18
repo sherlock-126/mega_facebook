@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaService } from '../media/media.service';
 import { FriendshipService } from '../friendship/friendship.service';
+import { SearchIndexerService } from '../search/search-indexer.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { PostVisibility } from '@prisma/client';
@@ -25,6 +26,7 @@ export class PostService {
     private readonly prisma: PrismaService,
     private readonly mediaService: MediaService,
     private readonly friendshipService: FriendshipService,
+    private readonly searchIndexer: SearchIndexerService,
   ) {}
 
   async create(
@@ -84,6 +86,18 @@ export class PostService {
           },
         });
         return created;
+      });
+
+      // Index post in Elasticsearch (fire-and-forget)
+      this.searchIndexer.indexPost({
+        postId: post.id,
+        authorId: post.authorId,
+        authorName: post.author?.profile?.displayName ?? null,
+        authorAvatar: post.author?.profile?.avatarKey ?? null,
+        content: post.content,
+        visibility: post.visibility,
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt,
       });
 
       return this.formatPostResponse(post);
@@ -205,6 +219,18 @@ export class PostService {
       },
     });
 
+    // Re-index updated post in Elasticsearch
+    this.searchIndexer.indexPost({
+      postId: updated.id,
+      authorId: updated.authorId,
+      authorName: (updated as any).author?.profile?.displayName ?? null,
+      authorAvatar: (updated as any).author?.profile?.avatarKey ?? null,
+      content: updated.content,
+      visibility: updated.visibility,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    });
+
     return this.formatPostResponse(updated);
   }
 
@@ -225,6 +251,9 @@ export class PostService {
       where: { id: postId },
       data: { deletedAt: new Date() },
     });
+
+    // Remove from Elasticsearch index
+    this.searchIndexer.removePost(postId);
 
     return { message: 'Post deleted' };
   }

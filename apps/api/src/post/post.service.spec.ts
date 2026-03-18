@@ -3,6 +3,7 @@ import { PostService } from './post.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaService } from '../media/media.service';
 import { FriendshipService } from '../friendship/friendship.service';
+import { SearchIndexerService } from '../search/search-indexer.service';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PostVisibility } from '@prisma/client';
 
@@ -36,6 +37,11 @@ describe('PostService', () => {
     getStatus: jest.fn(),
   };
 
+  const mockSearchIndexer = {
+    indexPost: jest.fn(),
+    removePost: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -43,6 +49,7 @@ describe('PostService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: MediaService, useValue: mockMedia },
         { provide: FriendshipService, useValue: mockFriendship },
+        { provide: SearchIndexerService, useValue: mockSearchIndexer },
       ],
     }).compile();
 

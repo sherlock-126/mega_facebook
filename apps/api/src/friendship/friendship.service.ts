@@ -259,6 +259,20 @@ export class FriendshipService {
     };
   }
 
+  async getFriendIds(userId: string): Promise<string[]> {
+    const friendships = await this.prisma.friendship.findMany({
+      where: {
+        status: FriendshipStatus.ACCEPTED,
+        OR: [{ requesterId: userId }, { addresseeId: userId }],
+      },
+      select: { requesterId: true, addresseeId: true },
+    });
+
+    return friendships.map((f) =>
+      f.requesterId === userId ? f.addresseeId : f.requesterId,
+    );
+  }
+
   async getStatus(userId: string, otherUserId: string) {
     const friendship = await this.prisma.friendship.findFirst({
       where: {
