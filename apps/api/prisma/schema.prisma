@@ -20,6 +20,12 @@ enum Gender {
   PREFER_NOT_TO_SAY
 }
 
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 model User {
   id           String     @id @default(uuid()) @db.Uuid
   email        String     @unique
@@ -28,9 +34,11 @@ model User {
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  refreshTokens  RefreshToken[]
-  passwordResets PasswordReset[]
-  profile        Profile?
+  refreshTokens      RefreshToken[]
+  passwordResets     PasswordReset[]
+  profile            Profile?
+  friendshipsSent     Friendship[] @relation("friendships_sent")
+  friendshipsReceived Friendship[] @relation("friendships_received")
 
   @@map("users")
 }
@@ -83,4 +91,21 @@ model Profile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("profiles")
+}
+
+model Friendship {
+  id          String           @id @default(uuid()) @db.Uuid
+  requesterId String           @map("requester_id") @db.Uuid
+  addresseeId String           @map("addressee_id") @db.Uuid
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  requester User @relation("friendships_sent", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("friendships_received", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+  @@index([requesterId, status])
+  @@map("friendships")
 }

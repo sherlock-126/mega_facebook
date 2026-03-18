@@ -8,6 +8,8 @@ import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { MediaModule } from './media/media.module';
 import { ProfileModule } from './profile/profile.module';
+import { FriendshipModule } from './friendship/friendship.module';
+import { UserSearchModule } from './user-search/user-search.module';
 import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.guard';
 
 @Module({
@@ -23,6 +25,8 @@ import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.
     AuthModule,
     MediaModule,
     ProfileModule,
+    FriendshipModule,
+    UserSearchModule,
   ],
   providers: [
     {

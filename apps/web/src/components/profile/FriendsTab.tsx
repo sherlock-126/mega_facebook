@@ -1,16 +1,18 @@
 'use client';
 
-import { Card, CardContent } from '@mega/ui';
+import { FriendList } from '../friendship/FriendList';
+import { FriendRequestList } from '../friendship/FriendRequestList';
 
-export function FriendsTab() {
+interface FriendsTabProps {
+  userId?: string;
+  isOwnProfile?: boolean;
+}
+
+export function FriendsTab({ userId, isOwnProfile }: FriendsTabProps) {
   return (
-    <Card className="mt-4">
-      <CardContent className="flex flex-col items-center justify-center py-12">
-        <p className="text-lg font-medium text-muted-foreground">No friends yet</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Friends will appear here once the feature is available.
-        </p>
-      </CardContent>
-    </Card>
+    <div className="mt-4">
+      {isOwnProfile && <FriendRequestList />}
+      <FriendList userId={userId} />
+    </div>
   );
 }
