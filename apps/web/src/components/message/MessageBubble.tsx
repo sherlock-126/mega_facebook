@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Avatar, AvatarImage, AvatarFallback } from '@mega/ui';
+import { Avatar } from '@mega/ui';
 import { cn } from '@mega/ui';
 import type { MessageResponse } from '@mega/shared';
 
@@ -19,14 +19,13 @@ export function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps
   return (
     <div className={cn('flex items-end gap-2 mb-1', isOwn && 'flex-row-reverse')}>
       {showAvatar && !isOwn ? (
-        <Avatar className="h-8 w-8 shrink-0">
-          {message.sender.avatarUrl ? (
-            <AvatarImage src={message.sender.avatarUrl} alt={message.sender.displayName || ''} />
-          ) : null}
-          <AvatarFallback className="text-xs">
-            {message.sender.displayName?.[0]?.toUpperCase() || '?'}
-          </AvatarFallback>
-        </Avatar>
+        <Avatar
+          className="h-8 w-8 shrink-0"
+          src={message.sender.avatarUrl}
+          alt={message.sender.displayName || ''}
+          fallback={message.sender.displayName || '?'}
+          size="sm"
+        />
       ) : (
         <div className="w-8 shrink-0" />
       )}

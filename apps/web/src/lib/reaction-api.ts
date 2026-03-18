@@ -23,6 +23,7 @@ export async function toggleReaction(
   targetId: string,
   type: ReactionType,
 ) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const res = await apiClient<ApiResponse<any>>('/reactions', {
     method: 'POST',
     body: JSON.stringify({ targetType, targetId, type }),

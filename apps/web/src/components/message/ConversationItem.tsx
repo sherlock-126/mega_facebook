@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { Avatar, AvatarImage, AvatarFallback } from '@mega/ui';
+import { Avatar } from '@mega/ui';
 import { cn } from '@mega/ui';
 import type { ConversationListItem } from '@mega/shared';
 import { usePresence } from '../../lib/presence-context';
@@ -11,16 +11,6 @@ interface ConversationItemProps {
   conversation: ConversationListItem;
   isActive: boolean;
   onClick: () => void;
-}
-
-function getInitials(name: string | null): string {
-  if (!name) return '?';
-  return name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
 }
 
 function formatTime(date: Date): string {
@@ -56,12 +46,12 @@ export function ConversationItem({ conversation, isActive, onClick }: Conversati
       )}
     >
       <div className="relative shrink-0">
-        <Avatar className="h-12 w-12">
-          {participant.avatarUrl ? (
-            <AvatarImage src={participant.avatarUrl} alt={participant.displayName || ''} />
-          ) : null}
-          <AvatarFallback>{getInitials(participant.displayName)}</AvatarFallback>
-        </Avatar>
+        <Avatar
+          className="h-12 w-12"
+          src={participant.avatarUrl}
+          alt={participant.displayName || ''}
+          fallback={participant.displayName || '?'}
+        />
         <OnlineIndicator
           isOnline={presence?.status === 'online'}
           size="sm"

@@ -9,7 +9,7 @@ interface FriendListProps {
   userId?: string;
 }
 
-export function FriendList({ userId }: FriendListProps) {
+export function FriendList({ userId: _userId }: FriendListProps) {
   const [friends, setFriends] = useState<FriendSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);

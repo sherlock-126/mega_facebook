@@ -5,7 +5,7 @@ import { BlockService } from '../block/block.service';
 import { ES_INDEX } from '../elasticsearch/elasticsearch.constants';
 import { SearchType } from './dto/search-query.dto';
 
-interface UserSearchResult {
+export interface UserSearchResult {
   userId: string;
   displayName: string | null;
   firstName: string | null;
@@ -16,7 +16,7 @@ interface UserSearchResult {
   highlight: Record<string, string[]>;
 }
 
-interface PostSearchResult {
+export interface PostSearchResult {
   postId: string;
   authorId: string;
   author: { displayName: string | null; avatarUrl: string | null };

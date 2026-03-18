@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, Avatar, Button, cn } from '@mega/ui';
+import { Card, CardContent, Avatar, Button } from '@mega/ui';
 import type { PostResponse } from '@mega/shared';
 import { PostMediaGallery } from './PostMediaGallery';
 import { EditPostModal } from './EditPostModal';

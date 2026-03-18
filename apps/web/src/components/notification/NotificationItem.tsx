@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Avatar, AvatarImage, AvatarFallback } from '@mega/ui';
+import { Avatar } from '@mega/ui';
 import { cn } from '@mega/ui';
 import type { NotificationResponse } from '@mega/shared';
 
@@ -46,14 +46,12 @@ export function NotificationItem({ notification, onClick }: NotificationItemProp
         !notification.isRead && 'bg-blue-50',
       )}
     >
-      <Avatar className="h-10 w-10 shrink-0">
-        {notification.actor.avatarUrl ? (
-          <AvatarImage src={notification.actor.avatarUrl} alt={notification.actor.displayName || ''} />
-        ) : null}
-        <AvatarFallback className="text-xs">
-          {notification.actor.displayName?.[0]?.toUpperCase() || '?'}
-        </AvatarFallback>
-      </Avatar>
+      <Avatar
+        className="h-10 w-10 shrink-0"
+        src={notification.actor.avatarUrl}
+        alt={notification.actor.displayName || ''}
+        fallback={notification.actor.displayName || '?'}
+      />
 
       <div className="flex-1 min-w-0">
         <p className="text-sm">

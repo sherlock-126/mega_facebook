@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Card, CardContent, Textarea, Label, Input } from '@mega/ui';
+import { Button, Card, CardContent, Textarea, Input } from '@mega/ui';
 import { createPost } from '@/lib/post-api';
 
 interface CreatePostFormProps {

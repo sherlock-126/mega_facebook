@@ -12,7 +12,7 @@ interface PostSearchResultProps {
   highlight: Record<string, string[]>;
 }
 
-export function PostSearchResult({ postId, authorId, author, content, visibility, createdAt, highlight }: PostSearchResultProps) {
+export function PostSearchResult({ postId: _postId, authorId, author, content, visibility, createdAt, highlight }: PostSearchResultProps) {
   const timeAgo = formatRelativeTime(createdAt);
 
   return (

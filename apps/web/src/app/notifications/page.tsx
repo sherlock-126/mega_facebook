@@ -12,7 +12,7 @@ import {
   markAllNotificationsAsRead,
 } from '../../lib/notification-api';
 import { NotificationItem } from '../../components/notification/NotificationItem';
-import type { NotificationResponse, NotificationType } from '@mega/shared';
+import type { NotificationResponse } from '@mega/shared';
 
 interface TabConfig {
   label: string;
