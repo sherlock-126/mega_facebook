@@ -24,6 +24,12 @@ export const PostAuthorSchema = z.object({
   avatarUrl: z.string().nullable(),
 });
 
+export const ReactionSummarySchema = z.object({
+  totalCount: z.number(),
+  byType: z.record(z.string(), z.number()),
+  topTypes: z.array(z.string()),
+});
+
 export const PostResponseSchema = z.object({
   id: z.string().uuid(),
   authorId: z.string().uuid(),
@@ -34,6 +40,8 @@ export const PostResponseSchema = z.object({
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
   isEdited: z.boolean(),
+  reactionSummary: ReactionSummarySchema.optional(),
+  commentCount: z.number().optional(),
 });
 
 export const FeedQuerySchema = z.object({

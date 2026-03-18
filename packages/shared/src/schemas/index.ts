@@ -28,6 +28,7 @@ export {
   UpdatePostSchema,
   PostMediaSchema,
   PostAuthorSchema,
+  ReactionSummarySchema,
   PostResponseSchema,
   FeedQuerySchema,
   type PostVisibility as PostVisibilityType,
@@ -38,6 +39,30 @@ export {
   type PostResponse,
   type FeedQuery,
 } from './post.schema';
+
+export {
+  ReactionTypeEnum,
+  ReactionTargetTypeEnum,
+  CreateReactionSchema,
+  ReactionResponseSchema,
+  ReactionSummaryResponseSchema,
+  ReactionUserSchema,
+  type ReactionType,
+  type ReactionTargetType,
+  type CreateReactionInput,
+  type ReactionResponse,
+  type ReactionSummaryResponse,
+  type ReactionUser,
+} from './reaction.schema';
+
+export {
+  CreateCommentSchema,
+  UpdateCommentSchema,
+  CommentResponseSchema,
+  type CreateCommentInput,
+  type UpdateCommentInput,
+  type CommentResponse,
+} from './comment.schema';
 
 export {
   FriendshipStatusEnum,

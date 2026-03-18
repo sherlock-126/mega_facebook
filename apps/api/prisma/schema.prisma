@@ -45,6 +45,8 @@ model User {
   friendshipsSent     Friendship[] @relation("friendships_sent")
   friendshipsReceived Friendship[] @relation("friendships_received")
   posts               Post[]
+  reactions           Reaction[]
+  comments            Comment[]
 
   @@map("users")
 }
@@ -125,8 +127,9 @@ model Post {
   updatedAt  DateTime       @updatedAt @map("updated_at")
   deletedAt  DateTime?      @map("deleted_at")
 
-  author User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  media  PostMedia[]
+  author   User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media    PostMedia[]
+  comments Comment[]
 
   @@index([authorId, deletedAt])
   @@index([createdAt])
@@ -146,4 +149,56 @@ model PostMedia {
 
   @@index([postId])
   @@map("post_media")
+}
+
+enum ReactionType {
+  LIKE
+  LOVE
+  HAHA
+  WOW
+  SAD
+  ANGRY
+}
+
+enum ReactionTargetType {
+  POST
+  COMMENT
+}
+
+model Reaction {
+  id         String             @id @default(uuid()) @db.Uuid
+  userId     String             @map("user_id") @db.Uuid
+  targetType ReactionTargetType @map("target_type")
+  targetId   String             @map("target_id") @db.Uuid
+  type       ReactionType
+  createdAt  DateTime           @default(now()) @map("created_at")
+  updatedAt  DateTime           @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetType, targetId])
+  @@index([targetType, targetId])
+  @@index([targetType, targetId, type])
+  @@map("reactions")
+}
+
+model Comment {
+  id        String    @id @default(uuid()) @db.Uuid
+  postId    String    @map("post_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  parentId  String?   @map("parent_id") @db.Uuid
+  content   String    @db.VarChar(2000)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  post    Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("comment_replies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("comment_replies")
+
+  @@index([postId, deletedAt, createdAt])
+  @@index([parentId, deletedAt, createdAt])
+  @@index([userId])
+  @@map("comments")
 }

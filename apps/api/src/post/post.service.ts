@@ -239,6 +239,28 @@ export class PostService {
       })),
     );
 
+    // Fetch reaction summary
+    const reactionRows = await this.prisma.reaction.groupBy({
+      by: ['type'],
+      where: { targetType: 'POST', targetId: post.id },
+      _count: { type: true },
+    });
+    const reactionByType: Record<string, number> = {};
+    let reactionTotal = 0;
+    for (const r of reactionRows) {
+      reactionByType[r.type] = r._count.type;
+      reactionTotal += r._count.type;
+    }
+    const topTypes = reactionRows
+      .sort((a, b) => b._count.type - a._count.type)
+      .slice(0, 3)
+      .map((r) => r.type);
+
+    // Fetch comment count
+    const commentCount = await this.prisma.comment.count({
+      where: { postId: post.id, deletedAt: null },
+    });
+
     return {
       id: post.id,
       authorId: post.authorId,
@@ -254,6 +276,12 @@ export class PostService {
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
       isEdited: post.updatedAt > post.createdAt,
+      reactionSummary: {
+        totalCount: reactionTotal,
+        byType: reactionByType,
+        topTypes,
+      },
+      commentCount,
     };
   }
 }
