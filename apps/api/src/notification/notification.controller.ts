@@ -32,11 +32,21 @@ export class NotificationController {
     @Request() req: { user: { userId: string } },
     @Query() query: NotificationQueryDto,
   ) {
-    const { page = 1, limit = 20 } = query;
+    const { page = 1, limit = 20, type, isRead } = query;
+
+    const filters: { type?: string[]; isRead?: boolean } = {};
+    if (type) {
+      filters.type = type.split(',').map((t) => t.trim());
+    }
+    if (isRead !== undefined) {
+      filters.isRead = isRead === 'true';
+    }
+
     const result = await this.notificationService.listNotifications(
       req.user.userId,
       page,
       limit,
+      filters,
     );
     return { success: true, ...result };
   }

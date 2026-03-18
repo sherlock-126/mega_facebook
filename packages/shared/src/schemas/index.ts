@@ -94,8 +94,10 @@ export {
 export {
   NotificationTypeEnum,
   NotificationResponseSchema,
+  NotificationFilterSchema,
   type NotificationType,
   type NotificationResponse,
+  type NotificationFilter,
 } from './notification.schema';
 
 export {

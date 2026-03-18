@@ -164,6 +164,15 @@ export function NotificationBell() {
                 />
               ))}
           </div>
+
+          <div className="border-t p-2 text-center">
+            <a
+              href="/notifications"
+              className="text-sm font-medium text-blue-500 hover:underline"
+            >
+              See all notifications
+            </a>
+          </div>
         </div>
       )}
     </div>

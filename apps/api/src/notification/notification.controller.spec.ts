@@ -38,6 +38,42 @@ describe('NotificationController', () => {
       const response = await controller.listNotifications(mockUser as any, { page: 1, limit: 20 } as any);
       expect(response).toEqual({ success: true, ...result });
     });
+
+    it('should pass type filter to service', async () => {
+      const result = { data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } };
+      mockNotificationService.listNotifications.mockResolvedValue(result);
+
+      await controller.listNotifications(mockUser as any, {
+        page: 1,
+        limit: 20,
+        type: 'COMMENT,REACTION',
+      } as any);
+
+      expect(mockNotificationService.listNotifications).toHaveBeenCalledWith(
+        'user-1',
+        1,
+        20,
+        { type: ['COMMENT', 'REACTION'] },
+      );
+    });
+
+    it('should pass isRead filter to service', async () => {
+      const result = { data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } };
+      mockNotificationService.listNotifications.mockResolvedValue(result);
+
+      await controller.listNotifications(mockUser as any, {
+        page: 1,
+        limit: 20,
+        isRead: 'false',
+      } as any);
+
+      expect(mockNotificationService.listNotifications).toHaveBeenCalledWith(
+        'user-1',
+        1,
+        20,
+        { isRead: false },
+      );
+    });
   });
 
   describe('getUnreadCount', () => {

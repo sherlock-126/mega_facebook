@@ -5,9 +5,15 @@ import type { NotificationResponse } from '@mega/shared';
 export async function listNotifications(
   page: number = 1,
   limit: number = 20,
+  filters?: { type?: string; isRead?: string },
 ): Promise<PaginatedResponse<NotificationResponse>> {
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('limit', String(limit));
+  if (filters?.type) params.set('type', filters.type);
+  if (filters?.isRead !== undefined) params.set('isRead', filters.isRead);
   return apiClient<PaginatedResponse<NotificationResponse>>(
-    `/notifications?page=${page}&limit=${limit}`,
+    `/notifications?${params.toString()}`,
   );
 }
 
