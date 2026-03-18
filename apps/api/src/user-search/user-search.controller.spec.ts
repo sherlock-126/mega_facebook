@@ -34,26 +34,29 @@ describe('UserSearchController', () => {
       };
       mockService.searchUsers.mockResolvedValue(paginatedResult);
 
-      const result = await controller.searchUsers({ q: 'John', page: 1, limit: 20 });
+      const mockReq = { user: { userId: 'currentUser' } };
+      const result = await controller.searchUsers(mockReq, { q: 'John', page: 1, limit: 20 });
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(1);
-      expect(mockService.searchUsers).toHaveBeenCalledWith('John', 1, 20);
+      expect(mockService.searchUsers).toHaveBeenCalledWith('John', 'currentUser', 1, 20);
     });
 
     it('should use default page and limit', async () => {
       const paginatedResult = { data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } };
       mockService.searchUsers.mockResolvedValue(paginatedResult);
 
-      await controller.searchUsers({ q: 'test' } as any);
-      expect(mockService.searchUsers).toHaveBeenCalledWith('test', 1, 20);
+      const mockReq = { user: { userId: 'currentUser' } };
+      await controller.searchUsers(mockReq, { q: 'test' } as any);
+      expect(mockService.searchUsers).toHaveBeenCalledWith('test', 'currentUser', 1, 20);
     });
 
     it('should pass custom pagination params', async () => {
       const paginatedResult = { data: [], meta: { total: 0, page: 3, limit: 10, totalPages: 0 } };
       mockService.searchUsers.mockResolvedValue(paginatedResult);
 
-      await controller.searchUsers({ q: 'test', page: 3, limit: 10 });
-      expect(mockService.searchUsers).toHaveBeenCalledWith('test', 3, 10);
+      const mockReq = { user: { userId: 'currentUser' } };
+      await controller.searchUsers(mockReq, { q: 'test', page: 3, limit: 10 });
+      expect(mockService.searchUsers).toHaveBeenCalledWith('test', 'currentUser', 3, 10);
     });
   });
 });

@@ -3,6 +3,7 @@ import { FeedService } from './feed.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaService } from '../media/media.service';
 import { FriendshipService } from '../friendship/friendship.service';
+import { BlockService } from '../block/block.service';
 import { PostVisibility, FriendshipStatus } from '@prisma/client';
 
 describe('FeedService', () => {
@@ -22,6 +23,10 @@ describe('FeedService', () => {
   };
 
   const mockFriendship = {};
+  const mockBlockService = {
+    isBlocked: jest.fn().mockResolvedValue(false),
+    getBlockedUserIds: jest.fn().mockResolvedValue([]),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -30,6 +35,7 @@ describe('FeedService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: MediaService, useValue: mockMedia },
         { provide: FriendshipService, useValue: mockFriendship },
+        { provide: BlockService, useValue: mockBlockService },
       ],
     }).compile();
 

@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { NotificationService } from '../notification/notification.service';
 import { MediaService } from '../media/media.service';
+import { BlockService } from '../block/block.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { DEFAULT_MESSAGE_LIMIT, DEFAULT_CONVERSATION_LIMIT } from './constants/message.constants';
@@ -22,6 +23,7 @@ export class MessageService {
     private readonly wsGateway: WebsocketGateway,
     private readonly notificationService: NotificationService,
     private readonly mediaService: MediaService,
+    private readonly blockService: BlockService,
   ) {}
 
   async createOrGetConversation(userId: string, dto: CreateConversationDto): Promise<{
@@ -32,6 +34,12 @@ export class MessageService {
   }> {
     if (dto.participantId === userId) {
       throw new BadRequestException('Cannot create conversation with yourself');
+    }
+
+    // Check block status
+    const blocked = await this.blockService.isBlocked(userId, dto.participantId);
+    if (blocked) {
+      throw new ForbiddenException('Cannot message this user');
     }
 
     // Validate participant exists and is ACTIVE
@@ -230,7 +238,18 @@ export class MessageService {
   }
 
   async sendMessage(conversationId: string, userId: string, dto: SendMessageDto) {
-    await this.validateParticipant(conversationId, userId);
+    const participant = await this.validateParticipant(conversationId, userId);
+
+    // Check if blocked by other participant(s) in conversation
+    const participants = await this.prisma.conversationParticipant.findMany({
+      where: { conversationId, userId: { not: userId } },
+    });
+    for (const p of participants) {
+      const blocked = await this.blockService.isBlocked(userId, p.userId);
+      if (blocked) {
+        throw new ForbiddenException('Cannot send message to this conversation');
+      }
+    }
 
     const message = await this.prisma.$transaction(async (tx) => {
       const msg = await tx.message.create({
@@ -255,22 +274,22 @@ export class MessageService {
     const formattedMessage = await this.formatMessageResponse(message);
 
     // Get all participants to emit WS events
-    const participants = await this.prisma.conversationParticipant.findMany({
+    const allParticipants = await this.prisma.conversationParticipant.findMany({
       where: { conversationId },
     });
 
-    for (const participant of participants) {
-      this.wsGateway.emitToUser(participant.userId, 'message:new', {
+    for (const p of allParticipants) {
+      this.wsGateway.emitToUser(p.userId, 'message:new', {
         message: formattedMessage,
         conversationId,
       });
     }
 
     // Create notification for the other participant(s)
-    for (const participant of participants) {
-      if (participant.userId !== userId) {
+    for (const p of allParticipants) {
+      if (p.userId !== userId) {
         await this.notificationService.createNotification({
-          userId: participant.userId,
+          userId: p.userId,
           actorId: userId,
           type: 'NEW_MESSAGE',
           targetId: conversationId,

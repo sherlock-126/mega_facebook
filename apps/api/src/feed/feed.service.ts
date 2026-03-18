@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaService } from '../media/media.service';
 import { FriendshipService } from '../friendship/friendship.service';
+import { BlockService } from '../block/block.service';
 import { PostVisibility, FriendshipStatus, UserStatus } from '@prisma/client';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class FeedService {
     private readonly prisma: PrismaService,
     private readonly mediaService: MediaService,
     private readonly friendshipService: FriendshipService,
+    private readonly blockService: BlockService,
   ) {}
 
   async getFeed(
@@ -33,10 +35,14 @@ export class FeedService {
       f.requesterId === userId ? f.addresseeId : f.requesterId,
     );
 
+    // Get blocked user IDs to filter from feed
+    const blockedIds = await this.blockService.getBlockedUserIds(userId);
+
     // Build where clause: own posts (any visibility) + friends' posts (any visibility) + public posts from active non-friends
     const where: any = {
       deletedAt: null,
       author: { status: UserStatus.ACTIVE },
+      ...(blockedIds.length > 0 ? { authorId: { notIn: blockedIds } } : {}),
       OR: [
         // Own posts
         { authorId: userId },

@@ -17,6 +17,7 @@ import { CommentModule } from './comment/comment.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { MessageModule } from './message/message.module';
 import { NotificationModule } from './notification/notification.module';
+import { BlockModule } from './block/block.module';
 import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.guard';
 
 @Module({
@@ -41,6 +42,7 @@ import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.
     WebsocketModule,
     MessageModule,
     NotificationModule,
+    BlockModule,
   ],
   providers: [
     {
