@@ -22,7 +22,7 @@ export function ProfileTabs({ profile, isOwnProfile, userId }: ProfileTabsProps)
           <TabsTrigger value="about">About</TabsTrigger>
         </TabsList>
         <TabsContent value="posts">
-          <PostsTab />
+          <PostsTab userId={userId} isOwnProfile={isOwnProfile} />
         </TabsContent>
         <TabsContent value="friends">
           <FriendsTab userId={userId} isOwnProfile={isOwnProfile} />

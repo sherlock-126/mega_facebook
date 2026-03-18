@@ -1,4 +1,4 @@
-import { PrismaClient, UserStatus, Gender, FriendshipStatus } from '@prisma/client';
+import { PrismaClient, UserStatus, Gender, FriendshipStatus, PostVisibility } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -105,6 +105,62 @@ async function main() {
     },
   });
   console.log('  Friendship: user4 -> user1 (PENDING)');
+
+  // Seed sample posts
+  const existingPostCount = await prisma.post.count();
+  if (existingPostCount === 0) {
+    // user1's public post
+    await prisma.post.create({
+      data: {
+        authorId: user1.id,
+        content: 'Hello everyone! This is my first post on Mega Facebook. Excited to connect with friends here!',
+        visibility: PostVisibility.PUBLIC,
+      },
+    });
+    console.log('  Post: user1 - public post');
+
+    // user1's friends-only post
+    await prisma.post.create({
+      data: {
+        authorId: user1.id,
+        content: 'This is a friends-only post. Only my friends can see this.',
+        visibility: PostVisibility.FRIENDS_ONLY,
+      },
+    });
+    console.log('  Post: user1 - friends-only post');
+
+    // user2's public post
+    await prisma.post.create({
+      data: {
+        authorId: user2.id,
+        content: 'Beautiful day in Ho Chi Minh City! The weather is perfect for a walk in the park.',
+        visibility: PostVisibility.PUBLIC,
+      },
+    });
+    console.log('  Post: user2 - public post');
+
+    // user3's post
+    await prisma.post.create({
+      data: {
+        authorId: user3.id,
+        content: 'Just finished reading a great book. Highly recommend "Clean Code" by Robert C. Martin!',
+        visibility: PostVisibility.PUBLIC,
+      },
+    });
+    console.log('  Post: user3 - public post');
+
+    // user4's post (not friends with user1)
+    await prisma.post.create({
+      data: {
+        authorId: user4.id,
+        content: 'Anyone up for a coding challenge this weekend? Let me know in the comments!',
+        visibility: PostVisibility.PUBLIC,
+      },
+    });
+    console.log('  Post: user4 - public post');
+  } else {
+    console.log('  Posts already exist, skipping post seeding');
+  }
 
   console.log('Seeding complete.');
 }

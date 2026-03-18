@@ -10,6 +10,8 @@ import { MediaModule } from './media/media.module';
 import { ProfileModule } from './profile/profile.module';
 import { FriendshipModule } from './friendship/friendship.module';
 import { UserSearchModule } from './user-search/user-search.module';
+import { PostModule } from './post/post.module';
+import { FeedModule } from './feed/feed.module';
 import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.guard';
 
 @Module({
@@ -27,6 +29,8 @@ import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.
     ProfileModule,
     FriendshipModule,
     UserSearchModule,
+    PostModule,
+    FeedModule,
   ],
   providers: [
     {
