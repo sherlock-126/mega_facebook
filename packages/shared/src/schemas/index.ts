@@ -23,6 +23,23 @@ export {
 } from './profile.schema';
 
 export {
+  PostVisibilityEnum,
+  CreatePostSchema,
+  UpdatePostSchema,
+  PostMediaSchema,
+  PostAuthorSchema,
+  PostResponseSchema,
+  FeedQuerySchema,
+  type PostVisibility as PostVisibilityType,
+  type CreatePostInput,
+  type UpdatePostInput,
+  type PostMedia,
+  type PostAuthor,
+  type PostResponse,
+  type FeedQuery,
+} from './post.schema';
+
+export {
   FriendshipStatusEnum,
   FriendshipSchema,
   FriendshipStatusResponseSchema,
