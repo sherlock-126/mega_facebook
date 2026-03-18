@@ -164,6 +164,60 @@ describe('NotificationService', () => {
       expect(result.data).toEqual([]);
       expect(result.meta.total).toBe(0);
     });
+
+    it('should filter by type', async () => {
+      mockPrisma.notification.findMany.mockResolvedValue([]);
+      mockPrisma.notification.count.mockResolvedValue(0);
+
+      await service.listNotifications('user-1', 1, 20, {
+        type: ['COMMENT', 'COMMENT_REPLY'],
+      });
+
+      expect(mockPrisma.notification.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: 'user-1',
+            type: { in: ['COMMENT', 'COMMENT_REPLY'] },
+          },
+        }),
+      );
+    });
+
+    it('should filter by isRead', async () => {
+      mockPrisma.notification.findMany.mockResolvedValue([]);
+      mockPrisma.notification.count.mockResolvedValue(0);
+
+      await service.listNotifications('user-1', 1, 20, { isRead: false });
+
+      expect(mockPrisma.notification.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: 'user-1',
+            isRead: false,
+          },
+        }),
+      );
+    });
+
+    it('should filter by both type and isRead', async () => {
+      mockPrisma.notification.findMany.mockResolvedValue([]);
+      mockPrisma.notification.count.mockResolvedValue(0);
+
+      await service.listNotifications('user-1', 1, 20, {
+        type: ['REACTION'],
+        isRead: true,
+      });
+
+      expect(mockPrisma.notification.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: 'user-1',
+            type: { in: ['REACTION'] },
+            isRead: true,
+          },
+        }),
+      );
+    });
   });
 
   describe('getUnreadCount', () => {

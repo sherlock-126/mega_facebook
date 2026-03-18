@@ -23,5 +23,13 @@ export const NotificationResponseSchema = z.object({
   createdAt: z.coerce.date(),
 });
 
+export const NotificationFilterSchema = z.object({
+  type: z.string().optional(),
+  isRead: z.enum(['true', 'false']).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+});
+
 export type NotificationType = z.infer<typeof NotificationTypeEnum>;
 export type NotificationResponse = z.infer<typeof NotificationResponseSchema>;
+export type NotificationFilter = z.infer<typeof NotificationFilterSchema>;

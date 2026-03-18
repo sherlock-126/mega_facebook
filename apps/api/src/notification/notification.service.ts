@@ -60,9 +60,22 @@ export class NotificationService {
     return formatted;
   }
 
-  async listNotifications(userId: string, page: number = 1, limit: number = DEFAULT_NOTIFICATION_LIMIT) {
+  async listNotifications(
+    userId: string,
+    page: number = 1,
+    limit: number = DEFAULT_NOTIFICATION_LIMIT,
+    filters?: { type?: string[]; isRead?: boolean },
+  ) {
     const skip = (page - 1) * limit;
-    const where = { userId };
+    const where: any = { userId };
+
+    if (filters?.type && filters.type.length > 0) {
+      where.type = { in: filters.type };
+    }
+
+    if (filters?.isRead !== undefined) {
+      where.isRead = filters.isRead;
+    }
 
     const [notifications, total] = await Promise.all([
       this.prisma.notification.findMany({
