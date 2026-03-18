@@ -1,95 +1,76 @@
 # Mega Facebook
 
-Mạng xã hội hiện đại được xây dựng với công nghệ tiên tiến nhất, hướng tới cộng đồng người dùng Việt Nam.
+Social networking platform built with a modern monorepo architecture.
 
-## Tính năng chính
+## Tech Stack
 
-- **Đăng ký & Đăng nhập** — Xác thực an toàn bằng email/mật khẩu, JWT
-- **Hồ sơ cá nhân** — Ảnh đại diện, ảnh bìa, thông tin cá nhân
-- **Bài viết** — Đăng, chỉnh sửa, xóa bài viết có văn bản và hình ảnh
-- **Bảng tin (News Feed)** — Cá nhân hóa theo bạn bè và mức độ tương tác
-- **Phản ứng & Bình luận** — Like, love, haha, wow, sad, angry + bình luận lồng nhau
-- **Bạn bè** — Tìm kiếm, gửi/chấp nhận lời mời kết bạn
-- **Nhắn tin** — Chat thời gian thực 1-1 qua WebSocket
-- **Thông báo** — Thông báo đẩy cho tương tác, tin nhắn, lời mời
-- **Tìm kiếm** — Tìm người dùng và bài viết theo từ khóa
+- **Monorepo**: Turborepo + pnpm workspaces
+- **API**: NestJS 10 + Prisma ORM + PostgreSQL 16
+- **Web**: Next.js 14 + React 18 + Tailwind CSS
+- **Infrastructure**: Docker Compose (PostgreSQL, Redis, MinIO, Elasticsearch)
+- **CI/CD**: GitHub Actions
 
-## Công nghệ
+## Getting Started
 
-| Lớp | Công nghệ |
-|---|---|
-| Frontend | React 18+, TypeScript, Next.js, Tailwind CSS |
-| Backend | Node.js, NestJS, GraphQL (Apollo), REST |
-| Database | PostgreSQL, Redis, Elasticsearch |
-| Real-time | Socket.IO / WebSocket |
-| Storage | S3/MinIO, CDN |
-| Hạ tầng | Docker, Kubernetes, GitHub Actions, Nginx |
-| Giám sát | Prometheus, Grafana, ELK Stack |
+### Prerequisites
 
-## Cài đặt
-
-### Yêu cầu
 - Node.js 20+
+- pnpm 9+
 - Docker & Docker Compose
-- PostgreSQL 16
-- Redis 7
 
-### Khởi chạy môi trường phát triển
+### Setup
 
 ```bash
-# Clone repository
-git clone <repo-url>
-cd mega_facebook
+# Install dependencies
+pnpm install
 
-# Cài đặt dependencies
-npm install
+# Copy environment variables
+cp .env.example .env
 
-# Khởi chạy infrastructure (database, redis, elasticsearch)
-docker-compose up -d
+# Start infrastructure
+pnpm docker:up
 
-# Chạy migration
-npm run db:migrate
+# Generate Prisma client
+pnpm db:generate
 
-# Khởi chạy ứng dụng
-npm run dev
+# Run development servers
+pnpm dev
 ```
 
-> Chi tiết cài đặt sẽ được cập nhật khi codebase được phát triển.
+### Ports
 
-## Cấu trúc dự án
+| Service       | Port |
+| ------------- | ---- |
+| Next.js Web   | 3000 |
+| NestJS API    | 3001 |
+| PostgreSQL    | 5432 |
+| Redis         | 6379 |
+| MinIO         | 9000 |
+| MinIO Console | 9001 |
+| Elasticsearch | 9200 |
+
+## Project Structure
 
 ```
-mega_facebook/
+mega-facebook/
 ├── apps/
-│   ├── web/            # Frontend (Next.js)
-│   └── api/            # Backend (NestJS)
+│   ├── api/          # NestJS API server
+│   └── web/          # Next.js web application
 ├── packages/
-│   ├── shared/         # Types & constants dùng chung
-│   └── ui/             # UI components dùng chung
-├── infra/              # Docker, K8s, Terraform
-├── docs/               # Tài liệu dự án
-│   ├── PRD.md          # Yêu cầu sản phẩm
-│   └── ARCHITECTURE.md # Kiến trúc hệ thống
-└── README.md
+│   ├── shared/       # Shared types and utilities
+│   └── ui/           # Shared UI components
+├── docker/           # Docker Compose configurations
+└── .github/          # CI/CD workflows
 ```
 
-> Cấu trúc sẽ được cập nhật khi dự án phát triển.
+## Scripts
 
-## Tài liệu
-
-- [Yêu cầu sản phẩm (PRD)](docs/PRD.md)
-- [Kiến trúc hệ thống](docs/ARCHITECTURE.md)
-
-## Đóng góp
-
-1. Fork repository
-2. Tạo branch tính năng (`git checkout -b feature/ten-tinh-nang`)
-3. Commit thay đổi (`git commit -m 'Thêm tính năng mới'`)
-4. Push lên branch (`git push origin feature/ten-tinh-nang`)
-5. Tạo Pull Request
-
-Vui lòng đọc tài liệu kiến trúc trước khi đóng góp để đảm bảo tuân thủ các quy ước của dự án.
-
-## Giấy phép
-
-Giấy phép sẽ được xác định sau. (TBD)
+```bash
+pnpm dev          # Start all dev servers
+pnpm build        # Build all packages
+pnpm test         # Run all tests
+pnpm lint         # Lint all packages
+pnpm format       # Format all files
+pnpm docker:up    # Start Docker services
+pnpm docker:down  # Stop Docker services
+```
