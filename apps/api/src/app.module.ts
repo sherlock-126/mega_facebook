@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
+import { MediaModule } from './media/media.module';
 import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.guard';
 
 @Module({
@@ -19,6 +20,7 @@ import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.
     RedisModule,
     HealthModule,
     AuthModule,
+    MediaModule,
   ],
   providers: [
     {
