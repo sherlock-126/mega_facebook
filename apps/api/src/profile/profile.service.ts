@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaService } from '../media/media.service';
+import { SearchIndexerService } from '../search/search-indexer.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { randomUUID } from 'crypto';
 
@@ -15,6 +16,7 @@ export class ProfileService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mediaService: MediaService,
+    private readonly searchIndexer: SearchIndexerService,
   ) {}
 
   async getMyProfile(userId: string) {
@@ -66,6 +68,25 @@ export class ProfileService {
       create: { userId, ...data } as any,
       update: data,
     });
+
+    // Re-index user in Elasticsearch after profile update
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { profile: true },
+    });
+    if (user?.profile) {
+      this.searchIndexer.indexUser({
+        userId: user.id,
+        firstName: user.profile.firstName,
+        lastName: user.profile.lastName,
+        displayName: user.profile.displayName,
+        bio: user.profile.bio,
+        location: user.profile.location,
+        avatarKey: user.profile.avatarKey,
+        status: user.status,
+        createdAt: user.createdAt,
+      });
+    }
 
     return this.getMyProfile(userId);
   }

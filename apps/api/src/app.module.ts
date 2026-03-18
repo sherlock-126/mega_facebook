@@ -18,6 +18,8 @@ import { WebsocketModule } from './websocket/websocket.module';
 import { MessageModule } from './message/message.module';
 import { NotificationModule } from './notification/notification.module';
 import { BlockModule } from './block/block.module';
+import { ElasticsearchModule } from './elasticsearch/elasticsearch.module';
+import { SearchModule } from './search/search.module';
 import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.guard';
 
 @Module({
@@ -29,6 +31,7 @@ import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
     PrismaModule,
     RedisModule,
+    ElasticsearchModule,
     HealthModule,
     AuthModule,
     MediaModule,
@@ -43,6 +46,7 @@ import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.
     MessageModule,
     NotificationModule,
     BlockModule,
+    SearchModule,
   ],
   providers: [
     {

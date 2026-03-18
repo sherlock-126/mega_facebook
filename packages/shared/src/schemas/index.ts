@@ -99,6 +99,19 @@ export {
 } from './notification.schema';
 
 export {
+  SearchTypeEnum,
+  SearchQuerySchema,
+  UserSearchResultSchema,
+  PostSearchResultSchema,
+  SearchAllResponseSchema,
+  type SearchType as SearchTypeType,
+  type SearchQuery,
+  type UserSearchResult,
+  type PostSearchResult,
+  type SearchAllResponse,
+} from './search.schema';
+
+export {
   BlockResponseSchema,
   BlockedUserSummarySchema,
   BlockStatusResponseSchema,

@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { ProfileService } from './profile.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaService } from '../media/media.service';
+import { SearchIndexerService } from '../search/search-indexer.service';
 
 describe('ProfileService', () => {
   let service: ProfileService;
@@ -22,12 +23,17 @@ describe('ProfileService', () => {
     delete: jest.fn(),
   };
 
+  const mockSearchIndexer = {
+    indexUser: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProfileService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: MediaService, useValue: mockMediaService },
+        { provide: SearchIndexerService, useValue: mockSearchIndexer },
       ],
     }).compile();
 
