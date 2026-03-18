@@ -8,6 +8,7 @@ import {
 import { Logger } from '@nestjs/common';
 import { Server } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
+import { EventEmitter2 } from 'eventemitter2';
 import { RedisService } from '../redis/redis.service';
 import { AuthenticatedSocket, createWsAuthMiddleware } from './ws-auth.middleware';
 
@@ -24,6 +25,7 @@ export class WebsocketGateway
   constructor(
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   afterInit(server: Server) {
@@ -45,6 +47,7 @@ export class WebsocketGateway
     }
     this.userSockets.get(userId)!.add(client.id);
 
+    this.eventEmitter.emit('ws.user.connected', { userId });
     this.logger.log(`Client connected: ${client.id} (user: ${userId})`);
   }
 
@@ -58,6 +61,7 @@ export class WebsocketGateway
           this.userSockets.delete(userId);
         }
       }
+      this.eventEmitter.emit('ws.user.disconnected', { userId });
     }
     this.logger.log(`Client disconnected: ${client.id}`);
   }

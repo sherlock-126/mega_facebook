@@ -5,9 +5,11 @@ import { Skeleton } from '@mega/ui';
 import { getMessages, sendMessage, markAsRead } from '../../lib/message-api';
 import { useSocket } from '../../lib/socket-context';
 import { useAuth } from '../../lib/auth-context';
+import { usePresence } from '../../lib/presence-context';
 import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
 import { TypingIndicator } from './TypingIndicator';
+import { LastSeen } from '../presence/LastSeen';
 import type { MessageResponse, ConversationListItem } from '@mega/shared';
 
 interface ChatWindowProps {
@@ -24,6 +26,12 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { socket } = useSocket();
   const { user } = useAuth();
+  const { presenceMap, trackUsers } = usePresence();
+  const presence = presenceMap.get(conversation.participant.userId);
+
+  useEffect(() => {
+    trackUsers([conversation.participant.userId]);
+  }, [conversation.participant.userId, trackUsers]);
 
   const fetchMessages = useCallback(async (cursor?: string) => {
     try {
@@ -126,6 +134,12 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
           <h2 className="font-semibold">
             {conversation.participant.displayName || 'Unknown User'}
           </h2>
+          {presence && (
+            <LastSeen
+              status={presence.status}
+              lastSeenAt={presence.lastSeenAt}
+            />
+          )}
         </div>
       </div>
 
