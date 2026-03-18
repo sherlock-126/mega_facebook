@@ -75,3 +75,25 @@ export {
   type FriendRequestSummary,
   type Friendship,
 } from './friendship.schema';
+
+export {
+  MessageResponseSchema,
+  ConversationParticipantSchema,
+  ConversationResponseSchema,
+  ConversationListItemSchema,
+  SendMessageInputSchema,
+  CreateConversationInputSchema,
+  type MessageResponse,
+  type ConversationParticipant,
+  type ConversationResponse,
+  type ConversationListItem,
+  type SendMessageInput,
+  type CreateConversationInput,
+} from './message.schema';
+
+export {
+  NotificationTypeEnum,
+  NotificationResponseSchema,
+  type NotificationType,
+  type NotificationResponse,
+} from './notification.schema';

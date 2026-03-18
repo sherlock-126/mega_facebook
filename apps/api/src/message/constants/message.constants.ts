@@ -1,0 +1,7 @@
+export const MAX_MESSAGE_LENGTH = 5000;
+export const DEFAULT_MESSAGE_LIMIT = 50;
+export const MAX_MESSAGE_LIMIT = 100;
+export const DEFAULT_CONVERSATION_LIMIT = 20;
+export const MAX_CONVERSATION_LIMIT = 50;
+export const MESSAGE_THROTTLE_LIMIT = 30;
+export const MESSAGE_THROTTLE_TTL = 60000;
