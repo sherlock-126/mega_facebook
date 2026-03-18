@@ -13,6 +13,13 @@ enum UserStatus {
   SUSPENDED
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
 model User {
   id           String     @id @default(uuid()) @db.Uuid
   email        String     @unique
@@ -23,6 +30,7 @@ model User {
 
   refreshTokens  RefreshToken[]
   passwordResets PasswordReset[]
+  profile        Profile?
 
   @@map("users")
 }
@@ -54,4 +62,25 @@ model PasswordReset {
 
   @@index([userId])
   @@map("password_resets")
+}
+
+model Profile {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @unique @map("user_id") @db.Uuid
+  firstName     String?   @map("first_name") @db.VarChar(50)
+  lastName      String?   @map("last_name") @db.VarChar(50)
+  displayName   String?   @map("display_name") @db.VarChar(100)
+  bio           String?   @db.VarChar(500)
+  dateOfBirth   DateTime? @map("date_of_birth") @db.Date
+  gender        Gender?
+  phoneNumber   String?   @map("phone_number") @db.VarChar(20)
+  location      String?   @db.VarChar(100)
+  avatarKey     String?   @map("avatar_key") @db.VarChar(500)
+  coverPhotoKey String?   @map("cover_photo_key") @db.VarChar(500)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
 }

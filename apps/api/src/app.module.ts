@@ -7,6 +7,7 @@ import { RedisModule } from './redis/redis.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { MediaModule } from './media/media.module';
+import { ProfileModule } from './profile/profile.module';
 import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.guard';
 
 @Module({
@@ -21,6 +22,7 @@ import { ThrottlerBehindProxyGuard } from './auth/guards/throttler-behind-proxy.
     HealthModule,
     AuthModule,
     MediaModule,
+    ProfileModule,
   ],
   providers: [
     {
