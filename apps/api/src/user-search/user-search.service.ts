@@ -1,43 +1,43 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { BlockService } from '../block/block.service';
 import { UserStatus } from '@prisma/client';
 
 @Injectable()
 export class UserSearchService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly blockService: BlockService,
+  ) {}
 
-  async searchUsers(query: string, page: number = 1, limit: number = 20) {
+  async searchUsers(query: string, currentUserId: string, page: number = 1, limit: number = 20) {
     const skip = (page - 1) * limit;
-    const pattern = `%${query}%`;
+
+    // Get blocked user IDs to filter from results
+    const blockedIds = await this.blockService.getBlockedUserIds(currentUserId);
+
+    const baseWhere: any = {
+      status: UserStatus.ACTIVE,
+      profile: {
+        OR: [
+          { firstName: { contains: query, mode: 'insensitive' } },
+          { lastName: { contains: query, mode: 'insensitive' } },
+          { displayName: { contains: query, mode: 'insensitive' } },
+        ],
+      },
+      ...(blockedIds.length > 0 ? { id: { notIn: blockedIds } } : {}),
+    };
 
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
-        where: {
-          status: UserStatus.ACTIVE,
-          profile: {
-            OR: [
-              { firstName: { contains: query, mode: 'insensitive' } },
-              { lastName: { contains: query, mode: 'insensitive' } },
-              { displayName: { contains: query, mode: 'insensitive' } },
-            ],
-          },
-        },
+        where: baseWhere,
         include: { profile: true },
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.user.count({
-        where: {
-          status: UserStatus.ACTIVE,
-          profile: {
-            OR: [
-              { firstName: { contains: query, mode: 'insensitive' } },
-              { lastName: { contains: query, mode: 'insensitive' } },
-              { displayName: { contains: query, mode: 'insensitive' } },
-            ],
-          },
-        },
+        where: baseWhere,
       }),
     ]);
 

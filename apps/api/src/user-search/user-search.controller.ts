@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Query,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -25,9 +26,12 @@ export class UserSearchController {
   @ApiOperation({ summary: 'Search users by name or email' })
   @ApiResponse({ status: 200, description: 'Search results' })
   @ApiResponse({ status: 400, description: 'Query too short' })
-  async searchUsers(@Query() query: SearchUsersQueryDto) {
+  async searchUsers(
+    @Request() req: { user: { userId: string } },
+    @Query() query: SearchUsersQueryDto,
+  ) {
     const { q, page = 1, limit = 20 } = query;
-    const result = await this.userSearchService.searchUsers(q, page, limit);
+    const result = await this.userSearchService.searchUsers(q, req.user.userId, page, limit);
     return { success: true, ...result };
   }
 }

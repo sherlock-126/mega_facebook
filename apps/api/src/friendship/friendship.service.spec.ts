@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { FriendshipService } from './friendship.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { BlockService } from '../block/block.service';
 import { FriendshipStatus } from '@prisma/client';
 
 describe('FriendshipService', () => {
@@ -25,11 +26,17 @@ describe('FriendshipService', () => {
     },
   };
 
+  const mockBlockService = {
+    isBlocked: jest.fn().mockResolvedValue(false),
+    getBlockedUserIds: jest.fn().mockResolvedValue([]),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         FriendshipService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: BlockService, useValue: mockBlockService },
       ],
     }).compile();
 

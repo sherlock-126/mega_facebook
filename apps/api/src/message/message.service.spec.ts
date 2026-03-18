@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { NotificationService } from '../notification/notification.service';
 import { MediaService } from '../media/media.service';
+import { BlockService } from '../block/block.service';
 
 describe('MessageService', () => {
   let service: MessageService;
@@ -35,6 +36,10 @@ describe('MessageService', () => {
   const mockWsGateway = { emitToUser: jest.fn() };
   const mockNotificationService = { createNotification: jest.fn() };
   const mockMediaService = { getSignedUrl: jest.fn() };
+  const mockBlockService = {
+    isBlocked: jest.fn().mockResolvedValue(false),
+    getBlockedUserIds: jest.fn().mockResolvedValue([]),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -44,6 +49,7 @@ describe('MessageService', () => {
         { provide: WebsocketGateway, useValue: mockWsGateway },
         { provide: NotificationService, useValue: mockNotificationService },
         { provide: MediaService, useValue: mockMediaService },
+        { provide: BlockService, useValue: mockBlockService },
       ],
     }).compile();
 

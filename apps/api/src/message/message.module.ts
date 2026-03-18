@@ -3,9 +3,10 @@ import { MessageController } from './message.controller';
 import { MessageService } from './message.service';
 import { MessageGateway } from './message.gateway';
 import { NotificationModule } from '../notification/notification.module';
+import { BlockModule } from '../block/block.module';
 
 @Module({
-  imports: [NotificationModule],
+  imports: [NotificationModule, BlockModule],
   controllers: [MessageController],
   providers: [MessageService, MessageGateway],
   exports: [MessageService],

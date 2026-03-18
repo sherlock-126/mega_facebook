@@ -97,3 +97,12 @@ export {
   type NotificationType,
   type NotificationResponse,
 } from './notification.schema';
+
+export {
+  BlockResponseSchema,
+  BlockedUserSummarySchema,
+  BlockStatusResponseSchema,
+  type BlockResponse,
+  type BlockedUserSummary,
+  type BlockStatusResponse,
+} from './block.schema';

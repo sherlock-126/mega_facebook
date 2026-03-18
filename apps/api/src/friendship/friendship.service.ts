@@ -6,11 +6,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { BlockService } from '../block/block.service';
 import { FriendshipStatus } from '@prisma/client';
 
 @Injectable()
 export class FriendshipService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly blockService: BlockService,
+  ) {}
 
   async sendRequest(requesterId: string, addresseeId: string) {
     if (requesterId === addresseeId) {
@@ -23,6 +27,12 @@ export class FriendshipService {
     });
     if (!addressee) {
       throw new NotFoundException('User not found');
+    }
+
+    // Check if either user has blocked the other
+    const blocked = await this.blockService.isBlocked(requesterId, addresseeId);
+    if (blocked) {
+      throw new ForbiddenException('Cannot send friend request to this user');
     }
 
     // Check for existing friendship in either direction

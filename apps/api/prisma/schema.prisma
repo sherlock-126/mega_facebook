@@ -51,6 +51,8 @@ model User {
   messagesSent            Message[]      @relation("messages_sent")
   notificationsReceived   Notification[] @relation("notifications_received")
   notificationsSent       Notification[] @relation("notifications_sent")
+  blocksSent              UserBlock[]    @relation("blocks_sent")
+  blocksReceived          UserBlock[]    @relation("blocks_received")
 
   @@map("users")
 }
@@ -205,6 +207,20 @@ model Comment {
   @@index([parentId, deletedAt, createdAt])
   @@index([userId])
   @@map("comments")
+}
+
+model UserBlock {
+  id        String   @id @default(uuid()) @db.Uuid
+  blockerId String   @map("blocker_id") @db.Uuid
+  blockedId String   @map("blocked_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  blocker User @relation("blocks_sent", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("blocks_received", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("user_blocks")
 }
 
 enum NotificationType {
