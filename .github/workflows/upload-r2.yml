@@ -1,0 +1,409 @@
+name: Upload to R2
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      artifacts_run_id:
+        required: false
+        type: string
+        description: "GitHub Actions run ID containing the artifacts"
+    secrets:
+      R2_ACCOUNT_ID:
+        required: true
+      R2_ACCESS_KEY_ID:
+        required: true
+      R2_SECRET_ACCESS_KEY:
+        required: true
+
+jobs:
+  upload:
+    name: Upload to Cloudflare R2
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm install @aws-sdk/client-s3 @aws-sdk/lib-storage mime-types
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.artifacts_run_id || github.run_id }}
+          path: artifacts
+
+      - name: Organize artifacts
+        run: |
+          mkdir -p release
+
+          # Move all artifacts to release directory
+          find artifacts -type f -name "*.tar.gz" -exec mv {} release/ \;
+          find artifacts -type f -name "*.exe" -exec mv {} release/ \;
+          find artifacts -type f -name "mega-cli-*" -exec mv {} release/ \;
+          find artifacts -type f -name "*.sha256" -exec mv {} release/ \;
+          find artifacts -type f -name "*.json" -exec mv {} release/ \;
+          find artifacts -type f -name "*.yml" -exec mv {} release/ \;
+          find artifacts -type f -name "*.yaml" -exec mv {} release/ \;
+
+          # Ensure CLI binaries are executable
+          chmod +x release/mega-cli-* 2>/dev/null || true
+
+          ls -la release/
+
+      - name: Create upload script
+        run: |
+          cat > upload-to-r2.js << 'EOF'
+          const {
+            S3Client,
+            PutObjectCommand,
+            HeadObjectCommand,
+            ListObjectsV2Command,
+            CopyObjectCommand,
+            DeleteObjectCommand
+          } = require('@aws-sdk/client-s3');
+          const { Upload } = require('@aws-sdk/lib-storage');
+          const fs = require('fs');
+          const path = require('path');
+          const crypto = require('crypto');
+          const { lookup } = require('mime-types');
+
+          const R2_BUCKET = 'maytrix';
+          const VERSION = '${{ inputs.version }}';
+          const VERSION_TAG = VERSION.startsWith('v') ? VERSION : `v${VERSION}`;
+
+          const client = new S3Client({
+            region: 'auto',
+            endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+            credentials: {
+              accessKeyId: process.env.R2_ACCESS_KEY_ID,
+              secretAccessKey: process.env.R2_SECRET_ACCESS_KEY
+            },
+            forcePathStyle: false
+          });
+
+          // Retry logic
+          async function retry(fn, retries = 3, delay = 1000) {
+            for (let i = 0; i < retries; i++) {
+              try {
+                return await fn();
+              } catch (error) {
+                if (i === retries - 1) throw error;
+                console.log(`Retry ${i + 1}/${retries} after error:`, error.message);
+                await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+              }
+            }
+          }
+
+          // Calculate file hash
+          function calculateHash(filePath) {
+            const fileBuffer = fs.readFileSync(filePath);
+            const hash = crypto.createHash('sha256');
+            hash.update(fileBuffer);
+            return hash.digest('hex');
+          }
+
+          // Upload file with progress
+          async function uploadFile(filePath, key, metadata = {}) {
+            const fileStream = fs.createReadStream(filePath);
+            const fileStats = fs.statSync(filePath);
+
+            // Determine content type
+            let contentType = lookup(filePath) || 'application/octet-stream';
+
+            // Set cache headers based on path
+            let cacheControl = 'public, max-age=31536000, immutable'; // 1 year for versioned content
+            if (key.includes('/latest/')) {
+              cacheControl = 'public, max-age=300, must-revalidate'; // 5 minutes for latest
+            }
+
+            const params = {
+              Bucket: R2_BUCKET,
+              Key: key,
+              Body: fileStream,
+              ContentType: contentType,
+              CacheControl: cacheControl,
+              Metadata: {
+                version: VERSION,
+                uploadTime: new Date().toISOString(),
+                sha256: calculateHash(filePath),
+                ...metadata
+              }
+            };
+
+            // Use multipart for large files
+            if (fileStats.size > 50 * 1024 * 1024) { // > 50MB
+              const upload = new Upload({
+                client,
+                params,
+                partSize: 10 * 1024 * 1024, // 10MB parts
+                queueSize: 4,
+                leavePartsOnError: false
+              });
+
+              upload.on('httpUploadProgress', (progress) => {
+                const percent = progress.loaded ? Math.round((progress.loaded / progress.total) * 100) : 0;
+                process.stdout.write(`\rUploading ${path.basename(filePath)}: ${percent}%`);
+              });
+
+              await upload.done();
+              console.log(''); // New line after progress
+            } else {
+              await retry(() => client.send(new PutObjectCommand(params)));
+            }
+
+            console.log(`✅ Uploaded: ${key} (${(fileStats.size / 1024 / 1024).toFixed(2)} MB)`);
+            return {
+              key,
+              size: fileStats.size,
+              hash: params.Metadata.sha256
+            };
+          }
+
+          // Check if object exists
+          async function objectExists(key) {
+            try {
+              await client.send(new HeadObjectCommand({
+                Bucket: R2_BUCKET,
+                Key: key
+              }));
+              return true;
+            } catch (error) {
+              if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+                return false;
+              }
+              throw error;
+            }
+          }
+
+          // Backup latest before updating
+          async function backupLatest() {
+            const backupPrefix = `releases/backup-${Date.now()}/`;
+            const latestPrefix = 'releases/latest/';
+
+            try {
+              const listCommand = new ListObjectsV2Command({
+                Bucket: R2_BUCKET,
+                Prefix: latestPrefix
+              });
+
+              const response = await client.send(listCommand);
+
+              if (response.Contents && response.Contents.length > 0) {
+                console.log('📦 Backing up current latest...');
+
+                for (const obj of response.Contents) {
+                  const sourceKey = obj.Key;
+                  const destKey = sourceKey.replace(latestPrefix, backupPrefix);
+
+                  await client.send(new CopyObjectCommand({
+                    Bucket: R2_BUCKET,
+                    CopySource: `${R2_BUCKET}/${sourceKey}`,
+                    Key: destKey
+                  }));
+                }
+
+                console.log('✅ Backup created at:', backupPrefix);
+                return backupPrefix;
+              }
+            } catch (error) {
+              console.warn('⚠️  Could not backup latest:', error.message);
+            }
+
+            return null;
+          }
+
+          // Main upload function
+          async function main() {
+            try {
+              console.log('🚀 Starting upload to Cloudflare R2');
+              console.log(`📦 Version: ${VERSION_TAG}`);
+              console.log(`🪣 Bucket: ${R2_BUCKET}`);
+
+              const releaseDir = 'release';
+
+              if (!fs.existsSync(releaseDir)) {
+                throw new Error(`Release directory not found: ${releaseDir}`);
+              }
+
+              const files = fs.readdirSync(releaseDir).filter(f => {
+                return fs.statSync(path.join(releaseDir, f)).isFile();
+              });
+
+              if (files.length === 0) {
+                throw new Error('No files found to upload');
+              }
+
+              console.log(`📁 Found ${files.length} files to upload`);
+
+              // Check if version already exists
+              const versionKey = `releases/${VERSION_TAG}/manifest.json`;
+              if (await objectExists(versionKey)) {
+                if (!process.env.FORCE_UPLOAD) {
+                  throw new Error(`Version ${VERSION_TAG} already exists. Set FORCE_UPLOAD=true to overwrite.`);
+                }
+                console.warn('⚠️  Overwriting existing version');
+              }
+
+              // Backup current latest
+              const backupPath = await backupLatest();
+
+              // Upload to version-specific directory
+              console.log(`\n📤 Uploading to version directory: releases/${VERSION_TAG}/`);
+              const uploadedFiles = [];
+
+              for (const file of files) {
+                const filePath = path.join(releaseDir, file);
+                const key = `releases/${VERSION_TAG}/${file}`;
+                const result = await uploadFile(filePath, key);
+                uploadedFiles.push(result);
+              }
+
+              // Create manifest
+              const manifest = {
+                version: VERSION_TAG.replace('v', ''),
+                tag: VERSION_TAG,
+                timestamp: new Date().toISOString(),
+                commit: process.env.GITHUB_SHA || 'unknown',
+                files: uploadedFiles.reduce((acc, file) => {
+                  const name = path.basename(file.key);
+                  acc[name] = {
+                    size: file.size,
+                    sha256: file.hash,
+                    url: `https://r2.maytrix.io/${file.key}`
+                  };
+                  return acc;
+                }, {}),
+                download: {
+                  complete: `https://r2.maytrix.io/releases/${VERSION_TAG}/mega-facebook-complete.tar.gz`,
+                  api: `https://r2.maytrix.io/releases/${VERSION_TAG}/mega-facebook-api.tar.gz`,
+                  web: `https://r2.maytrix.io/releases/${VERSION_TAG}/mega-facebook-web.tar.gz`,
+                  cli: {
+                    linux: `https://r2.maytrix.io/releases/${VERSION_TAG}/mega-cli-linux-x64`,
+                    macOS: `https://r2.maytrix.io/releases/${VERSION_TAG}/mega-cli-darwin-x64`,
+                    macOSArm: `https://r2.maytrix.io/releases/${VERSION_TAG}/mega-cli-darwin-arm64`,
+                    windows: `https://r2.maytrix.io/releases/${VERSION_TAG}/mega-cli-win-x64.exe`
+                  }
+                }
+              };
+
+              // Upload manifest
+              const manifestPath = path.join(releaseDir, 'manifest.json');
+              fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+              await uploadFile(manifestPath, `releases/${VERSION_TAG}/manifest.json`);
+
+              // Update latest directory
+              console.log(`\n📤 Updating latest directory...`);
+
+              for (const file of [...files, 'manifest.json']) {
+                const filePath = path.join(releaseDir, file);
+                const key = `releases/latest/${file}`;
+                await uploadFile(filePath, key);
+              }
+
+              // Update metadata
+              console.log(`\n📝 Updating metadata...`);
+
+              // Update latest version file
+              const versionFile = path.join(releaseDir, 'latest-version.txt');
+              fs.writeFileSync(versionFile, VERSION_TAG.replace('v', ''));
+              await uploadFile(versionFile, 'metadata/latest-version.txt');
+
+              // Update versions.json
+              const versionsData = {
+                latest: VERSION_TAG.replace('v', ''),
+                latestTag: VERSION_TAG,
+                versions: [VERSION_TAG],
+                updated: new Date().toISOString()
+              };
+
+              const versionsFile = path.join(releaseDir, 'versions.json');
+              fs.writeFileSync(versionsFile, JSON.stringify(versionsData, null, 2));
+              await uploadFile(versionsFile, 'metadata/versions.json');
+
+              // Success!
+              console.log('\n' + '='.repeat(60));
+              console.log('✅ Upload completed successfully!');
+              console.log('='.repeat(60));
+              console.log(`📦 Version: ${VERSION_TAG}`);
+              console.log(`🌐 Base URL: https://r2.maytrix.io/releases/${VERSION_TAG}/`);
+              console.log(`📥 Download: https://r2.maytrix.io/releases/${VERSION_TAG}/mega-facebook-complete.tar.gz`);
+              console.log(`📊 Manifest: https://r2.maytrix.io/releases/${VERSION_TAG}/manifest.json`);
+              console.log('='.repeat(60));
+
+              // Clean up old backup if everything succeeded
+              if (backupPath) {
+                console.log('\n🧹 Upload successful, old backup can be removed manually:', backupPath);
+              }
+
+            } catch (error) {
+              console.error('\n❌ Upload failed:', error.message);
+              console.error(error.stack);
+              process.exit(1);
+            }
+          }
+
+          // Run
+          main();
+          EOF
+
+      - name: Upload to R2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          node upload-to-r2.js
+
+      - name: Verify upload
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          cat > verify-upload.js << 'EOF'
+          const { S3Client, HeadObjectCommand } = require('@aws-sdk/client-s3');
+
+          const client = new S3Client({
+            region: 'auto',
+            endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+            credentials: {
+              accessKeyId: process.env.R2_ACCESS_KEY_ID,
+              secretAccessKey: process.env.R2_SECRET_ACCESS_KEY
+            }
+          });
+
+          async function verify() {
+            const criticalFiles = [
+              `releases/${{ inputs.version }}/manifest.json`,
+              `releases/latest/manifest.json`,
+              `metadata/latest-version.txt`
+            ];
+
+            for (const key of criticalFiles) {
+              try {
+                await client.send(new HeadObjectCommand({
+                  Bucket: 'maytrix',
+                  Key: key
+                }));
+                console.log(`✅ Verified: ${key}`);
+              } catch (error) {
+                console.error(`❌ Missing: ${key}`);
+                process.exit(1);
+              }
+            }
+
+            console.log('\n✅ All critical files verified!');
+          }
+
+          verify();
+          EOF
+
+          node verify-upload.js
