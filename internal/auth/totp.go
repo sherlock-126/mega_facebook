@@ -8,7 +8,6 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/proto"
 	"github.com/pquerna/otp/totp"
-	"github.com/sherlock-126/mega_facebook/internal/selectors"
 )
 
 // GenerateTOTP generates a TOTP code from a base32-encoded secret.
@@ -29,7 +28,7 @@ func GenerateTOTP(secret string) (string, error) {
 // Enter2FACode finds the 2FA input field on the page and enters the code.
 func Enter2FACode(page *rod.Page, code string) error {
 	// Try known 2FA input selectors
-	for _, sel := range selectors.TwoFA {
+	for _, sel := range twoFASelectors {
 		has, el, err := page.Has(sel)
 		if err != nil || !has {
 			continue
@@ -43,7 +42,12 @@ func Enter2FACode(page *rod.Page, code string) error {
 		}
 
 		// Look for submit button and click it
-		for _, btnSel := range selectors.Submit {
+		submitSelectors := []string{
+			"button[type='submit']",
+			"#checkpointSubmitButton",
+			"button[name='submit[Continue]']",
+		}
+		for _, btnSel := range submitSelectors {
 			has, btn, err := page.Has(btnSel)
 			if err == nil && has {
 				if err := btn.Click(proto.InputMouseButtonLeft, 1); err != nil {

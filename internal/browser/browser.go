@@ -8,7 +8,6 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/stealth"
-	"github.com/sherlock-126/mega_facebook/internal/selectors"
 )
 
 const (
@@ -16,6 +15,20 @@ const (
 	navigationTimeout = 30 * time.Second
 	elementTimeout    = 10 * time.Second
 )
+
+// loginSelectors are CSS selectors that indicate the user is logged in.
+var loginSelectors = []string{
+	"[role='navigation']",
+	"[aria-label='Facebook']",
+	"div[data-pagelet='Stories']",
+}
+
+// logoutSelectors are CSS selectors that indicate the user is NOT logged in.
+var logoutSelectors = []string{
+	"input[name='email']",
+	"input[name='pass']",
+	"button[name='login']",
+}
 
 // ConnectResult holds the browser and page after connecting.
 type ConnectResult struct {
@@ -77,7 +90,7 @@ func CheckFacebookLogin(browser *rod.Browser) (bool, error) {
 	time.Sleep(2 * time.Second)
 
 	// Check for login form elements first (faster signal for logged-out state)
-	for _, sel := range selectors.LoggedOut {
+	for _, sel := range logoutSelectors {
 		has, _, err := page.Has(sel)
 		if err == nil && has {
 			return false, nil
@@ -85,7 +98,7 @@ func CheckFacebookLogin(browser *rod.Browser) (bool, error) {
 	}
 
 	// Check for logged-in indicators
-	for _, sel := range selectors.LoggedIn {
+	for _, sel := range loginSelectors {
 		has, _, err := page.Has(sel)
 		if err == nil && has {
 			return true, nil
