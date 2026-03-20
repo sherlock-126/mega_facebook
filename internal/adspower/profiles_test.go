@@ -37,7 +37,7 @@ func TestListProfiles(t *testing.T) {
 	}
 }
 
-func TestListProfiles_Empty(t *testing.T) {
+func TestListProfilesEmpty(t *testing.T) {
 	srv, client := setupTestServer(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"code":0,"msg":"success","data":{"list":[]}}`))
 	})
@@ -76,7 +76,7 @@ func TestOpenProfile(t *testing.T) {
 	}
 }
 
-func TestOpenProfile_APIError(t *testing.T) {
+func TestOpenProfileError(t *testing.T) {
 	srv, client := setupTestServer(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"code":-1,"msg":"profile not found"}`))
 	})
@@ -109,7 +109,7 @@ func TestCloseProfile(t *testing.T) {
 	}
 }
 
-func TestCloseProfile_APIError(t *testing.T) {
+func TestCloseProfileError(t *testing.T) {
 	srv, client := setupTestServer(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"code":-1,"msg":"failed to close"}`))
 	})

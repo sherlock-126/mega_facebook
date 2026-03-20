@@ -2,3 +2,49 @@
 CLAUDE.md
 .vibedev-status.json
 .vibedev-prompt.md
+
+# Binary
+mega_facebook
+*.exe
+
+# Go
+vendor/
+*.test
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+.turbo/
+out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+apps/api/prisma/migrations/
+
+# Testing
+coverage/
+
+# Docker volumes
+docker/data/
+
+# Misc
+*.log
+*.tsbuildinfo
