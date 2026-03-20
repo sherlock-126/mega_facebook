@@ -1,179 +1,105 @@
-# autonow-fb
+# @mega/cli
 
-Công cụ CLI tương tác để cài đặt và quản lý nền tảng AutoNow FB.
+Interactive CLI tool for setting up and managing the Mega Facebook platform.
 
-## Tính năng
+## Features
 
-- 🚀 **Cài đặt tự động** - Hướng dẫn cài đặt với giao diện đẹp
-- 🔍 **Kiểm tra hệ thống** - Xác thực Node.js và Docker
-- 📝 **Cấu hình môi trường** - Tự động tạo file `.env`
-- 🐳 **Quản lý Docker** - Khởi động và quản lý các dịch vụ Docker
-- 🗄️ **Thiết lập Database** - Chạy migrations và tạo dữ liệu mẫu
-- 📦 **Cấu hình Storage** - Thiết lập MinIO buckets
-- 🩺 **Kiểm tra sức khỏe** - Chẩn đoán vấn đề với lệnh `doctor`
-- 🔄 **Reset môi trường** - Xóa sạch dữ liệu và cài lại
-- ☁️ **Tải từ Cloud** - Tải và cài đặt từ Cloudflare R2
+- 🚀 **Interactive Setup Wizard** - Guided setup with beautiful prompts
+- 🔍 **System Requirements Check** - Validates Node.js and Docker installation
+- 📝 **Environment Configuration** - Generates `.env` files from templates
+- 🐳 **Docker Management** - Starts and manages Docker services
+- 🗄️ **Database Setup** - Runs migrations and optional data seeding
+- 📦 **Storage Configuration** - Sets up MinIO buckets
+- 🩺 **Health Checks** - Diagnose system issues with `doctor` command
+- 🔄 **Reset Functionality** - Clean slate with data removal
 
-## Cài đặt
+## Installation
 
-### Cách 1: Cài đặt nhanh từ Cloud (Khuyến nghị)
-
-```bash
-# Tải và cài đặt phiên bản mới nhất
-npx autonow-fb install
-
-# Hoặc cài đặt phiên bản cụ thể
-npx autonow-fb install --version 1.0.0
-```
-
-### Cách 2: Chạy trực tiếp từ npm
+The CLI is included in the monorepo and can be run directly with pnpm:
 
 ```bash
-# Chạy trình cài đặt
-npx autonow-fb setup
+# From the project root
+pnpm cli setup
 ```
 
-### Cách 3: Cài đặt global
+Or use npx:
 
 ```bash
-# Cài đặt global
-npm install -g autonow-fb
-
-# Sau đó chạy
-autonow-fb setup
+npx @mega/cli setup
 ```
 
-## Các lệnh
+## Commands
 
-### `setup` (mặc định)
+### `setup` (default)
 
-Hướng dẫn cài đặt tương tác từng bước:
+Interactive wizard that guides you through the complete setup process:
 
 ```bash
-npx autonow-fb setup
+npx @mega/cli setup
 ```
 
-Trình cài đặt sẽ:
-1. Kiểm tra phiên bản Node.js (≥20.0.0) và Docker
-2. Tạo file môi trường từ template
-3. Khởi động các dịch vụ Docker (PostgreSQL, Redis, MinIO, Elasticsearch)
-4. Chạy database migrations
-5. Tạo MinIO storage bucket
-6. Tùy chọn tạo dữ liệu mẫu
-
-### `install`
-
-Tải và cài đặt AutoNow FB từ Cloud:
-
-```bash
-npx autonow-fb install [options]
-```
-
-Tùy chọn:
-- `--version <version>` - Cài đặt phiên bản cụ thể
-- `--force` - Ghi đè cài đặt hiện tại
-- `--dry-run` - Kiểm tra mà không cài đặt
-- `--verify` - Xác minh checksum
-
-### `update`
-
-Kiểm tra và cập nhật phiên bản mới:
-
-```bash
-npx autonow-fb update
-```
+The wizard will:
+1. Check Node.js version (≥20.0.0) and Docker installation
+2. Generate environment files from templates
+3. Start Docker services (PostgreSQL, Redis, MinIO, Elasticsearch)
+4. Run database migrations
+5. Create MinIO storage bucket
+6. Optionally seed the database with sample data
 
 ### `doctor`
 
-Kiểm tra sức khỏe hệ thống AutoNow FB:
+Check the health of your Mega Facebook installation:
 
 ```bash
-npx autonow-fb doctor
+npx @mega/cli doctor
 ```
 
-Báo cáo trạng thái:
-- Yêu cầu hệ thống (Node.js, Docker, ports)
-- Cấu hình môi trường
-- Sức khỏe dịch vụ Docker
-- Kết nối database và migrations
-- Kết nối MinIO storage
+Reports status of:
+- System requirements (Node.js, Docker, ports)
+- Environment configuration
+- Docker services health
+- Database connection and migrations
+- MinIO storage connection
 
 ### `reset`
 
-Reset môi trường về trạng thái ban đầu:
+Reset the environment to a clean state:
 
 ```bash
-npx autonow-fb reset
+npx @mega/cli reset
 ```
 
-Lệnh này sẽ:
-- Dừng tất cả dịch vụ Docker
-- Xóa Docker volumes (xóa toàn bộ dữ liệu)
-- Tùy chọn chạy lại quá trình cài đặt
+This will:
+- Stop all Docker services
+- Remove Docker volumes (deletes all data)
+- Optionally restart the setup process
 
-Dùng `--force` để bỏ qua xác nhận:
+Use `--force` to skip confirmation prompts:
 
 ```bash
-npx autonow-fb reset --force
+npx @mega/cli reset --force
 ```
 
-### `start`
+## Development
 
-Khởi động tất cả dịch vụ:
-
-```bash
-npx autonow-fb start
-```
-
-### `stop`
-
-Dừng tất cả dịch vụ:
+To work on the CLI itself:
 
 ```bash
-npx autonow-fb stop
-```
-
-### `logs`
-
-Xem logs của dịch vụ:
-
-```bash
-npx autonow-fb logs [service]
-```
-
-### `seed`
-
-Tạo dữ liệu mẫu:
-
-```bash
-npx autonow-fb seed [options]
-```
-
-Tùy chọn:
-- `--admin-only` - Chỉ tạo tài khoản admin
-- `--full` - Tạo toàn bộ dữ liệu demo
-- `--force` - Ghi đè dữ liệu hiện có
-
-## Phát triển
-
-Để phát triển CLI:
-
-```bash
-# Cài đặt dependencies
+# Install dependencies
 pnpm install
 
-# Build CLI
-pnpm --filter autonow-fb build
+# Build the CLI
+pnpm --filter @mega/cli build
 
-# Chế độ phát triển
-pnpm --filter autonow-fb dev
+# Watch mode during development
+pnpm --filter @mega/cli dev
 ```
 
-## Yêu cầu hệ thống
+## System Requirements
 
 - Node.js ≥ 20.0.0
 - Docker & Docker Compose
-- Các port khả dụng:
+- Available ports:
   - 3000 (Web app)
   - 3001 (API server)
   - 5432 (PostgreSQL)
@@ -182,44 +108,37 @@ pnpm --filter autonow-fb dev
   - 9001 (MinIO Console)
   - 9200 (Elasticsearch)
 
-## Xử lý sự cố
+## Troubleshooting
 
-### Xung đột Port
+### Port Conflicts
 
-Nếu gặp cảnh báo xung đột port, dừng các dịch vụ khác đang dùng port đó hoặc sửa cấu hình port trong file `.env`.
+If you see port conflict warnings, stop other services using those ports or modify the port configuration in `.env` files.
 
-### Lỗi kết nối Docker
+### Docker Connection Issues
 
-Đảm bảo Docker Desktop hoặc Docker Engine đang chạy:
+Ensure Docker Desktop or Docker Engine is running:
 
 ```bash
 docker info
 ```
 
-### Lỗi kết nối Database
+### Database Connection Failed
 
-Kiểm tra PostgreSQL container:
+Check that PostgreSQL container is healthy:
 
 ```bash
 docker ps
-docker logs autonow_postgres
+docker logs mega_postgres
 ```
 
-### Lỗi kết nối MinIO
+### MinIO Connection Failed
 
-MinIO có thể mất thời gian khởi động. Kiểm tra trạng thái:
+MinIO may take longer to start. Check its status:
 
 ```bash
-docker logs autonow_minio
+docker logs mega_minio
 ```
-
-### Lỗi tải từ Cloud
-
-Nếu không thể tải từ R2:
-- Kiểm tra kết nối internet
-- Thử lại với `--force` flag
-- Liên hệ support nếu lỗi tiếp tục
 
 ## License
 
-MIT - AutoNow FB Team
+Part of the Mega Facebook monorepo.

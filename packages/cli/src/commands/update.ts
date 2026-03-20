@@ -1,99 +1,55 @@
-import semver from 'semver';
+import updateNotifier from 'update-notifier';
+import { readFileSync } from 'fs';
 import chalk from 'chalk';
-import { confirm, intro, outro } from '@clack/prompts';
-import { R2Client } from '../services/r2-client.js';
-import { ConfigManager } from '../services/config-manager.js';
 import { logger } from '../utils/logger.js';
-import { installCommand } from './install.js';
+import { getCliPath } from '../utils/paths.js';
+import { ConfigManager } from '../services/config-manager.js';
+import { exec } from '../utils/exec.js';
+import { spinner } from '../utils/spinner.js';
 
-interface UpdateOptions {
-  check?: boolean;
-}
-
-export async function updateCommand(options: UpdateOptions): Promise<void> {
-  intro(chalk.cyan('🔄 AutoNow FB - Kiểm tra cập nhật'));
-
-  const r2Client = new R2Client();
-  const config = new ConfigManager();
-
+export async function updateCommand(options: { check?: boolean }): Promise<void> {
   try {
-    // Get current version
-    const currentVersion = config.getInstalledVersion();
-    if (!currentVersion) {
-      logger.warn('Chưa cài đặt AutoNow FB. Hãy chạy:');
-      logger.info(chalk.cyan('  autonow-fb install'));
-      return;
-    }
+    const packageJsonPath = getCliPath('package.json');
+    const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
 
-    logger.info(`Phiên bản hiện tại: ${chalk.yellow(currentVersion)}`);
+    // Check for updates
+    const notifier = updateNotifier({ pkg, updateCheckInterval: 0 });
 
-    // Fetch latest version from R2
-    logger.info('Đang kiểm tra phiên bản mới...');
-    const manifest = await r2Client.fetchManifest('latest');
-    const latestVersion = manifest.version;
-
-    logger.info(`Phiên bản mới nhất: ${chalk.green(latestVersion)}`);
-
-    // Compare versions
-    if (semver.eq(currentVersion, latestVersion)) {
-      outro(chalk.green('✅ Bạn đang dùng phiên bản mới nhất!'));
-      return;
-    }
-
-    const isNewer = semver.gt(latestVersion, currentVersion);
-
-    if (isNewer) {
+    if (notifier.update) {
+      logger.info(chalk.yellow('Update available!'));
+      logger.info(`Current version: ${chalk.red(notifier.current)}`);
+      logger.info(`Latest version: ${chalk.green(notifier.latest)}`);
       logger.newline();
-      logger.info(chalk.yellow('📦 Có phiên bản mới!'));
-      logger.info(`Từ ${currentVersion} → ${latestVersion}`);
 
       if (options.check) {
-        logger.newline();
-        logger.info('Để cập nhật, chạy lệnh:');
-        logger.info(chalk.cyan('  autonow-fb update'));
-        return;
-      }
+        logger.info('To update, run:');
+        logger.info(chalk.cyan(`  npm install -g ${pkg.name}@latest`));
+      } else {
+        // Perform update
+        spinner.start('Updating CLI...');
 
-      // Show changelog if available
-      try {
-        const versions = await r2Client.fetchVersions();
-        const targetVersion = versions.find(v => v.version === latestVersion);
-        if (targetVersion) {
-          logger.info(`Ngày phát hành: ${new Date(targetVersion.releaseDate).toLocaleDateString('vi-VN')}`);
+        try {
+          await exec('npm', ['install', '-g', `${pkg.name}@latest`], {
+            timeout: 60000,
+          });
+
+          spinner.succeed('CLI updated successfully!');
+          logger.info('Please restart your terminal for changes to take effect.');
+        } catch (error) {
+          spinner.fail('Failed to update CLI');
+          logger.error('Please try updating manually:');
+          logger.info(chalk.cyan(`  npm install -g ${pkg.name}@latest`));
         }
-      } catch {
-        // Ignore if can't fetch versions
       }
-
-      logger.newline();
-      const shouldUpdate = await confirm({
-        message: 'Bạn có muốn cập nhật không?',
-        initialValue: true
-      });
-
-      if (!shouldUpdate) {
-        outro(chalk.yellow('Đã hủy cập nhật'));
-        return;
-      }
-
-      // Perform update by running install command
-      logger.newline();
-      await installCommand({
-        version: latestVersion,
-        force: true,
-        verify: true
-      });
-
     } else {
-      logger.warn(`Phiên bản cloud (${latestVersion}) cũ hơn phiên bản hiện tại (${currentVersion})`);
-      logger.info('Có thể bạn đang dùng phiên bản phát triển.');
+      logger.success('You are running the latest version!');
     }
 
     // Update last check time
+    const config = new ConfigManager();
     config.updateLastUpdateCheck();
-
   } catch (error: any) {
-    logger.error(`Không thể kiểm tra cập nhật: ${error.message}`);
+    logger.error(`Failed to check for updates: ${error.message}`);
     process.exit(1);
   }
 }

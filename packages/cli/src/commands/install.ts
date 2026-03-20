@@ -1,218 +1,195 @@
-import path from 'path';
-import os from 'os';
-import fs from 'fs-extra';
-import tar from 'tar';
-import semver from 'semver';
+import { Command } from 'commander';
 import chalk from 'chalk';
+import ora from 'ora';
+import axios from 'axios';
+import fs from 'fs-extra';
+import path from 'path';
+import tar from 'tar';
 import crypto from 'crypto';
-import { confirm, intro, outro } from '@clack/prompts';
-import { R2Client } from '../services/r2-client.js';
-import { ConfigManager } from '../services/config-manager.js';
-import { logger } from '../utils/logger.js';
-import { spinner } from '../utils/spinner.js';
-import { exec } from '../utils/exec.js';
+import { confirm, text } from '@clack/prompts';
+import { logger } from '../utils/logger';
+import { R2_CONFIG } from '../config/r2';
+import { getConfig, setConfig } from '../services/config-manager';
+import semver from 'semver';
 
-interface InstallOptions {
-  version?: string;
-  force?: boolean;
-  dryRun?: boolean;
-  verify?: boolean;
-}
+export const installCommand = new Command('install')
+  .description('Install Mega Facebook from cloud release')
+  .option('-v, --version <version>', 'Specific version to install')
+  .option('-f, --force', 'Force install even if already exists')
+  .option('-d, --dry-run', 'Check available version without installing')
+  .option('--verify', 'Verify checksums after download')
+  .option('-p, --path <path>', 'Installation path', process.cwd())
+  .action(async (options) => {
+    const spinner = ora();
 
-export async function installCommand(options: InstallOptions): Promise<void> {
-  intro(chalk.cyan('🚀 AutoNow FB - Cài đặt từ Cloud'));
+    try {
+      // Fetch manifest
+      spinner.start('Fetching release manifest...');
+      const manifestUrl = options.version
+        ? `${R2_CONFIG.baseUrl}/releases/v${options.version}/manifest.json`
+        : `${R2_CONFIG.baseUrl}/releases/latest/manifest.json`;
 
-  const r2Client = new R2Client();
-  const config = new ConfigManager();
-
-  try {
-    // Fetch manifest
-    const version = options.version || 'latest';
-    logger.info(`Đang kiểm tra phiên bản ${version}...`);
-
-    const manifest = await r2Client.fetchManifest(version);
-    logger.success(`Tìm thấy phiên bản: ${manifest.version}`);
-    logger.info(`Build ID: ${manifest.buildId}`);
-    logger.info(`Ngày build: ${new Date(manifest.timestamp).toLocaleString('vi-VN')}`);
-
-    // Check if already installed
-    const currentVersion = config.getInstalledVersion();
-    if (currentVersion && !options.force) {
-      if (semver.eq(currentVersion, manifest.version)) {
-        logger.info('Phiên bản này đã được cài đặt.');
-        if (!await confirm({
-          message: 'Bạn có muốn cài đặt lại không?',
-          initialValue: false
-        })) {
-          outro(chalk.yellow('Đã hủy cài đặt'));
-          return;
+      let manifest;
+      try {
+        const response = await axios.get(manifestUrl);
+        manifest = response.data;
+      } catch (error: any) {
+        spinner.fail('Failed to fetch manifest');
+        if (error.response?.status === 404) {
+          logger.error(`Version ${options.version || 'latest'} not found`);
+        } else {
+          logger.error(`Network error: ${error.message}`);
         }
-      } else if (semver.gt(currentVersion, manifest.version)) {
-        logger.warn(`Phiên bản hiện tại (${currentVersion}) mới hơn phiên bản muốn cài (${manifest.version})`);
-        if (!options.force) {
-          if (!await confirm({
-            message: 'Bạn có muốn downgrade không?',
-            initialValue: false
-          })) {
-            outro(chalk.yellow('Đã hủy cài đặt'));
-            return;
-          }
+        process.exit(1);
+      }
+      spinner.succeed(`Found version ${manifest.version}`);
+
+      // Check if already installed
+      const config = getConfig();
+      if (config.installedVersion && !options.force && !options.dryRun) {
+        const shouldUpdate = await confirm({
+          message: `Version ${config.installedVersion} is already installed. Overwrite?`,
+        });
+        if (!shouldUpdate) {
+          logger.info('Installation cancelled');
+          process.exit(0);
         }
       }
-    }
 
-    // Dry run mode
-    if (options.dryRun) {
-      logger.info('Chế độ dry-run: Không thực hiện cài đặt thật');
-      logger.info('Sẽ tải xuống:');
-      logger.info(`  - API: ${formatBytes(manifest.artifacts.api.size)}`);
-      logger.info(`  - Web: ${formatBytes(manifest.artifacts.web.size)}`);
-      outro(chalk.green('✅ Kiểm tra hoàn tất'));
-      return;
-    }
+      // Dry run - just show info
+      if (options.dryRun) {
+        console.log('\n' + chalk.cyan('Release Information:'));
+        console.log(`  Version: ${manifest.version}`);
+        console.log(`  Build: ${manifest.buildId}`);
+        console.log(`  Date: ${manifest.timestamp}`);
+        console.log(`  API: ${(manifest.artifacts.api.size / 1024 / 1024).toFixed(2)} MB`);
+        console.log(`  Web: ${(manifest.artifacts.web.size / 1024 / 1024).toFixed(2)} MB`);
+        process.exit(0);
+      }
 
-    // Check requirements
-    if (manifest.requirements?.node) {
+      // Check Node version
       const nodeVersion = process.version;
-      if (!semver.satisfies(nodeVersion, manifest.requirements.node)) {
-        throw new Error(`Yêu cầu Node.js ${manifest.requirements.node}, hiện tại: ${nodeVersion}`);
+      if (manifest.requirements?.node && !semver.satisfies(nodeVersion, manifest.requirements.node)) {
+        logger.error(`Node version ${nodeVersion} does not satisfy ${manifest.requirements.node}`);
+        process.exit(1);
       }
+
+      // Set installation path
+      const installPath = path.resolve(options.path);
+      await fs.ensureDir(installPath);
+
+      // Download artifacts
+      console.log('\n' + chalk.cyan('Downloading artifacts...'));
+
+      const artifacts = ['api', 'web'];
+      const downloadedFiles: { [key: string]: string } = {};
+
+      for (const artifact of artifacts) {
+        const artifactInfo = manifest.artifacts[artifact];
+        if (!artifactInfo) continue;
+
+        spinner.start(`Downloading ${artifact}...`);
+        const tempFile = path.join(installPath, `.${artifact}.tar.gz.tmp`);
+
+        try {
+          const response = await axios.get(artifactInfo.url, {
+            responseType: 'stream',
+            onDownloadProgress: (progressEvent) => {
+              if (progressEvent.total) {
+                const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                spinner.text = `Downloading ${artifact}... ${percentCompleted}%`;
+              }
+            },
+          });
+
+          const writer = fs.createWriteStream(tempFile);
+          response.data.pipe(writer);
+
+          await new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', reject);
+          });
+
+          // Verify checksum if requested
+          if (options.verify && artifactInfo.checksum) {
+            spinner.text = `Verifying ${artifact} checksum...`;
+            const fileBuffer = await fs.readFile(tempFile);
+            const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+            const expectedHash = artifactInfo.checksum.replace('sha256:', '');
+
+            if (hash !== expectedHash) {
+              throw new Error(`Checksum mismatch for ${artifact}`);
+            }
+          }
+
+          downloadedFiles[artifact] = tempFile;
+          spinner.succeed(`Downloaded ${artifact}`);
+        } catch (error: any) {
+          spinner.fail(`Failed to download ${artifact}`);
+          throw error;
+        }
+      }
+
+      // Extract artifacts
+      console.log('\n' + chalk.cyan('Extracting artifacts...'));
+
+      for (const [artifact, filePath] of Object.entries(downloadedFiles)) {
+        spinner.start(`Extracting ${artifact}...`);
+        const targetDir = path.join(installPath, `apps/${artifact}`);
+        await fs.ensureDir(targetDir);
+
+        try {
+          await tar.x({
+            file: filePath,
+            cwd: targetDir,
+            strip: 2, // Remove apps/api or apps/web prefix
+          });
+          spinner.succeed(`Extracted ${artifact}`);
+
+          // Clean up temp file
+          await fs.remove(filePath);
+        } catch (error: any) {
+          spinner.fail(`Failed to extract ${artifact}`);
+          throw error;
+        }
+      }
+
+      // Generate .env files if they don't exist
+      spinner.start('Setting up environment...');
+      const envFiles = [
+        { source: 'apps/api/.env.example', target: 'apps/api/.env' },
+        { source: 'apps/web/.env.example', target: 'apps/web/.env.local' }
+      ];
+
+      for (const { source, target } of envFiles) {
+        const sourcePath = path.join(installPath, source);
+        const targetPath = path.join(installPath, target);
+
+        if (await fs.pathExists(sourcePath) && !(await fs.pathExists(targetPath))) {
+          await fs.copy(sourcePath, targetPath);
+          logger.info(`Created ${target}`);
+        }
+      }
+      spinner.succeed('Environment setup complete');
+
+      // Update config
+      setConfig({
+        installedVersion: manifest.version,
+        installedAt: new Date().toISOString(),
+        installPath: installPath,
+      });
+
+      // Success message
+      console.log('\n' + chalk.green('✅ Installation complete!'));
+      console.log('\nNext steps:');
+      console.log('  1. Start Docker services: ' + chalk.cyan('docker-compose up -d'));
+      console.log('  2. Run database migrations: ' + chalk.cyan('npm run db:migrate'));
+      console.log('  3. Start the development server: ' + chalk.cyan('npm run dev'));
+      console.log('\nInstalled at: ' + chalk.yellow(installPath));
+
+    } catch (error: any) {
+      spinner.fail('Installation failed');
+      logger.error(error.message);
+      process.exit(1);
     }
-
-    // Determine install path
-    const installPath = config.getInstallPath() || path.join(os.homedir(), '.autonow-fb');
-    await fs.ensureDir(installPath);
-
-    // Check disk space
-    const totalSize = manifest.artifacts.api.size + manifest.artifacts.web.size;
-    if (!await r2Client.checkDiskSpace(totalSize * 1.5, installPath)) {
-      throw new Error('Không đủ dung lượng đĩa');
-    }
-
-    logger.info(`Đường dẫn cài đặt: ${installPath}`);
-
-    // Download artifacts
-    const artifactsDir = path.join(installPath, 'artifacts');
-    await fs.ensureDir(artifactsDir);
-
-    // Download API artifact
-    logger.newline();
-    logger.info('Đang tải API service...');
-    const apiPath = path.join(artifactsDir, 'api.tar.gz');
-    await r2Client.downloadArtifact(
-      manifest.artifacts.api.url,
-      apiPath,
-      options.verify ? manifest.artifacts.api.checksum : undefined,
-      manifest.artifacts.api.size
-    );
-
-    // Download Web artifact
-    logger.newline();
-    logger.info('Đang tải Web application...');
-    const webPath = path.join(artifactsDir, 'web.tar.gz');
-    await r2Client.downloadArtifact(
-      manifest.artifacts.web.url,
-      webPath,
-      options.verify ? manifest.artifacts.web.checksum : undefined,
-      manifest.artifacts.web.size
-    );
-
-    // Extract artifacts
-    logger.newline();
-    spinner.start('Đang giải nén API...');
-    const apiDir = path.join(installPath, 'api');
-    await fs.ensureDir(apiDir);
-    await tar.extract({
-      file: apiPath,
-      cwd: apiDir
-    });
-    spinner.succeed('API đã được giải nén');
-
-    spinner.start('Đang giải nén Web...');
-    const webDir = path.join(installPath, 'web');
-    await fs.ensureDir(webDir);
-    await tar.extract({
-      file: webPath,
-      cwd: webDir
-    });
-    spinner.succeed('Web đã được giải nén');
-
-    // Post-install setup
-    logger.newline();
-    logger.info('Đang chạy cài đặt sau khi tải...');
-
-    // Generate .env files if not exist
-    const envPath = path.join(installPath, '.env');
-    if (!await fs.pathExists(envPath)) {
-      spinner.start('Đang tạo file cấu hình...');
-      await generateEnvFile(envPath);
-      spinner.succeed('File cấu hình đã được tạo');
-    }
-
-    // Save installation info
-    config.saveInstallInfo({
-      version: manifest.version,
-      installPath,
-      installedAt: new Date().toISOString()
-    });
-
-    // Clean up artifacts
-    await fs.remove(artifactsDir);
-
-    outro(chalk.green('✅ Cài đặt thành công!'));
-
-    logger.newline();
-    logger.info('Các bước tiếp theo:');
-    logger.info('1. Chạy Docker services:');
-    logger.info(chalk.cyan('   autonow-fb start'));
-    logger.info('2. Chạy database migrations:');
-    logger.info(chalk.cyan('   cd ' + installPath));
-    logger.info(chalk.cyan('   npm run db:migrate'));
-    logger.info('3. Truy cập ứng dụng:');
-    logger.info(chalk.cyan('   http://localhost:3000'));
-
-  } catch (error: any) {
-    logger.error(`Cài đặt thất bại: ${error.message}`);
-    process.exit(1);
-  }
-}
-
-// Helper functions
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-}
-
-async function generateEnvFile(envPath: string): Promise<void> {
-  const defaultEnv = `# AutoNow FB Configuration
-NODE_ENV=development
-
-# Database
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/autonow_fb
-
-# Redis
-REDIS_URL=redis://localhost:6379
-
-# JWT
-JWT_SECRET=${generateRandomSecret()}
-JWT_REFRESH_SECRET=${generateRandomSecret()}
-
-# MinIO (S3)
-S3_ENDPOINT=http://localhost:9000
-S3_ACCESS_KEY=minioadmin
-S3_SECRET_KEY=minioadmin
-S3_BUCKET_NAME=autonow-fb
-
-# Elasticsearch
-ELASTICSEARCH_NODE=http://localhost:9200
-`;
-
-  await fs.writeFile(envPath, defaultEnv);
-}
-
-function generateRandomSecret(): string {
-  return crypto.randomBytes(32).toString('hex');
-}
+  });

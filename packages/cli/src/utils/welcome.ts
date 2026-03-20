@@ -6,20 +6,20 @@ import { logger } from './logger.js';
 export function showWelcome(): void {
   const title = chalk.bold.cyan('🚀 AutoNow FB');
   const version = chalk.gray('v1.0.0');
-  const description = chalk.white('Nền tảng mạng xã hội thế hệ mới');
+  const description = chalk.white('Next-generation social platform');
 
   const content = `${title} ${version}
 ${description}
 
-${chalk.yellow('Bắt đầu nhanh:')}
-  ${chalk.cyan('autonow-fb')}         Cài đặt tương tác
-  ${chalk.cyan('autonow-fb install')}  Tải từ Cloud
-  ${chalk.cyan('autonow-fb doctor')}   Kiểm tra hệ thống
-  ${chalk.cyan('autonow-fb --help')}   Xem tất cả lệnh
+${chalk.yellow('Getting Started:')}
+  ${chalk.cyan('autonow-fb')}         Interactive setup
+  ${chalk.cyan('autonow-fb install')}  Download from cloud
+  ${chalk.cyan('autonow-fb doctor')}   Check system health
+  ${chalk.cyan('autonow-fb --help')}   Show all commands
 
-${chalk.yellow('Tài nguyên:')}
-  ${terminalLink('Tài liệu', 'https://github.com/sherlock-126/mega_facebook#readme')}
-  ${terminalLink('Báo lỗi', 'https://github.com/sherlock-126/mega_facebook/issues')}`;
+${chalk.yellow('Resources:')}
+  ${terminalLink('Documentation', 'https://github.com/sherlock-126/mega_facebook#readme')}
+  ${terminalLink('Report Issues', 'https://github.com/sherlock-126/mega_facebook/issues')}`;
 
   const box = boxen(content, {
     padding: 1,

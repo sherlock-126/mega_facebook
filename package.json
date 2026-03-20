@@ -9,17 +9,30 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "test": "turbo test",
     "clean": "turbo clean",
+    "cli": "pnpm --filter @mega/cli start",
+    "setup": "pnpm --filter @mega/cli start setup",
+    "doctor": "pnpm --filter @mega/cli start doctor",
     "db:generate": "pnpm --filter api prisma:generate",
     "db:migrate": "pnpm --filter api prisma:migrate",
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
-    "docker:down": "docker compose -f docker/docker-compose.yml down"
+    "docker:down": "docker compose -f docker/docker-compose.yml down",
+    "cli:build": "pnpm --filter @mega/cli build",
+    "cli:dev": "pnpm --filter @mega/cli dev",
+    "cli:publish": "pnpm --filter @mega/cli publish",
+    "release:build": "node scripts/build-release.js",
+    "release:upload": "node scripts/upload-r2.js",
+    "release": "npm run release:build && npm run release:upload",
+    "docker:build": "docker build -f apps/api/Dockerfile.prod -t mega-facebook-api . && docker build -f apps/web/Dockerfile.prod -t mega-facebook-web ."
   },
   "devDependencies": {
-    "turbo": "^2.3.0",
-    "prettier": "^3.2.0"
+    "prettier": "^3.2.0",
+    "turbo": "^2.3.0"
   },
   "packageManager": "pnpm@9.15.4",
   "engines": {
     "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "pnpm": "^10.32.1"
   }
 }

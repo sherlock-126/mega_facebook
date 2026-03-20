@@ -1,275 +1,432 @@
-# Hướng dẫn xử lý sự cố - AutoNow FB CLI
+# Troubleshooting Guide
 
-## 🔴 Lỗi thường gặp
+## Common Issues and Solutions
 
-### 1. Lỗi cài đặt từ Cloud
+### Installation Issues
 
-#### Không thể kết nối đến R2
+#### npm install fails with permission errors
 
-**Triệu chứng:**
-```
-❌ Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.
-```
+**Problem**: Permission denied when installing globally
 
-**Giải pháp:**
-1. Kiểm tra kết nối internet
-2. Thử ping đến domain: `ping maytrix.pub.r2.dev`
-3. Kiểm tra firewall/proxy có chặn kết nối không
-4. Thử lại với lệnh: `autonow-fb install --force`
-
-#### Checksum không khớp
-
-**Triệu chứng:**
-```
-❌ File tải xuống bị hỏng. Vui lòng thử lại.
-```
-
-**Giải pháp:**
-1. Xóa file tải xuống cũ: `rm -rf ~/.autonow-fb/artifacts`
-2. Thử tải lại: `autonow-fb install --verify`
-3. Nếu vẫn lỗi, tải không verify: `autonow-fb install`
-
-### 2. Lỗi Docker
-
-#### Docker không chạy
-
-**Triệu chứng:**
-```
-❌ Docker is not running
-```
-
-**Giải pháp:**
-- **macOS/Windows:** Khởi động Docker Desktop
-- **Linux:**
-  ```bash
-  sudo systemctl start docker
-  sudo systemctl enable docker
-  ```
-
-#### Xung đột port
-
-**Triệu chứng:**
-```
-⚠️  Port 3000 is already in use
-```
-
-**Giải pháp:**
-1. Tìm process đang dùng port:
-   ```bash
-   # macOS/Linux
-   lsof -i :3000
-
-   # Windows
-   netstat -ano | findstr :3000
-   ```
-
-2. Dừng process hoặc đổi port trong `.env`:
-   ```env
-   WEB_PORT=3002
-   API_PORT=3003
-   ```
-
-### 3. Lỗi Database
-
-#### Không kết nối được PostgreSQL
-
-**Triệu chứng:**
-```
-❌ Database connection failed
-```
-
-**Giải pháp:**
-1. Kiểm tra container đang chạy:
-   ```bash
-   docker ps | grep postgres
-   ```
-
-2. Xem logs:
-   ```bash
-   docker logs autonow_postgres
-   ```
-
-3. Restart container:
-   ```bash
-   docker restart autonow_postgres
-   ```
-
-4. Nếu vẫn lỗi, reset database:
-   ```bash
-   autonow-fb reset --force
-   autonow-fb setup
-   ```
-
-#### Migration thất bại
-
-**Triệu chứng:**
-```
-❌ Failed to run migrations
-```
-
-**Giải pháp:**
-1. Kiểm tra DATABASE_URL trong `.env`
-2. Reset migrations:
-   ```bash
-   cd apps/api
-   npx prisma migrate reset --force
-   npx prisma migrate deploy
-   ```
-
-### 4. Lỗi MinIO/Storage
-
-#### MinIO không khởi động
-
-**Triệu chứng:**
-```
-❌ MinIO connection failed
-```
-
-**Giải pháp:**
-1. MinIO mất thời gian khởi động, đợi 30s
-2. Kiểm tra logs:
-   ```bash
-   docker logs autonow_minio
-   ```
-
-3. Truy cập console: http://localhost:9001
-   - User: minioadmin
-   - Pass: minioadmin
-
-### 5. Lỗi Node.js
-
-#### Phiên bản Node.js không đúng
-
-**Triệu chứng:**
-```
-❌ Node.js version 20.0.0 or higher is required
-```
-
-**Giải pháp:**
-1. Cài Node.js 20+:
-   - Dùng [nvm](https://github.com/nvm-sh/nvm):
-     ```bash
-     nvm install 20
-     nvm use 20
-     ```
-   - Hoặc tải từ [nodejs.org](https://nodejs.org)
-
-### 6. Lỗi quyền (Permissions)
-
-#### Lỗi EACCES
-
-**Triệu chứng:**
-```
-❌ EACCES: permission denied
-```
-
-**Giải pháp:**
-1. **npm global install:** Cấu hình npm prefix:
-   ```bash
-   mkdir ~/.npm-global
-   npm config set prefix '~/.npm-global'
-   echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
-   source ~/.bashrc
-   ```
-
-2. **Docker permissions (Linux):**
-   ```bash
-   sudo usermod -aG docker $USER
-   newgrp docker
-   ```
-
-## 💡 Mẹo khắc phục nhanh
-
-### Reset hoàn toàn
-
-Nếu gặp lỗi không xác định, reset tất cả:
+**Solution**:
 ```bash
-# Dừng và xóa tất cả
-autonow-fb reset --force
+# Option 1: Use npx instead (no installation needed)
+npx @mega/cli setup
 
-# Xóa cache npm
-npm cache clean --force
+# Option 2: Fix npm permissions
+mkdir ~/.npm-global
+npm config set prefix '~/.npm-global'
+echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
+source ~/.bashrc
+npm install -g @mega/cli
 
-# Cài đặt lại
-autonow-fb install --force
-autonow-fb setup
+# Option 3: Use sudo (not recommended)
+sudo npm install -g @mega/cli
 ```
 
-### Chế độ Debug
+#### Command not found after installation
 
-Bật chế độ debug để xem chi tiết lỗi:
+**Problem**: `mega-cli: command not found`
+
+**Solution**:
 ```bash
-DEBUG=* autonow-fb doctor
+# Check if npm bin is in PATH
+npm bin -g
+
+# Add to PATH if needed
+export PATH=$(npm bin -g):$PATH
+
+# Or use npx
+npx @mega/cli
 ```
 
-### Kiểm tra sức khỏe hệ thống
+### System Requirements
 
+#### Node.js version too old
+
+**Problem**: Node.js version < 20.0.0
+
+**Solution**:
 ```bash
-autonow-fb doctor
+# Using nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+nvm install 20
+nvm use 20
+
+# Using fnm
+curl -fsSL https://fnm.vercel.app/install | bash
+fnm install 20
+fnm use 20
 ```
 
-Lệnh này sẽ kiểm tra:
-- ✅ Node.js version
-- ✅ Docker status
-- ✅ Port availability
-- ✅ Environment files
-- ✅ Database connection
-- ✅ Storage connection
+#### Docker not installed
 
-## 📞 Hỗ trợ
+**Problem**: Docker command not found
 
-Nếu vẫn gặp lỗi:
+**Solution**:
 
-1. **Tạo issue trên GitHub:**
-   https://github.com/sherlock-126/mega_facebook/issues
+**macOS/Windows**:
+1. Download and install [Docker Desktop](https://www.docker.com/products/docker-desktop)
+2. Start Docker Desktop
+3. Verify: `docker --version`
 
-2. **Cung cấp thông tin:**
-   - Output của `autonow-fb doctor`
-   - Hệ điều hành (macOS/Linux/Windows)
-   - Phiên bản Node.js: `node --version`
-   - Phiên bản Docker: `docker --version`
-   - Log lỗi đầy đủ
-
-3. **Tham gia cộng đồng:**
-   - Discord: [Coming soon]
-   - Telegram: [Coming soon]
-
-## 🔧 Công cụ hữu ích
-
-### Docker cleanup
-
+**Linux**:
 ```bash
-# Xóa containers stopped
-docker container prune
+# Install Docker
+curl -fsSL https://get.docker.com | sh
 
-# Xóa images không dùng
+# Add user to docker group
+sudo usermod -aG docker $USER
+
+# Log out and back in, then verify
+docker --version
+```
+
+#### Docker daemon not running
+
+**Problem**: Cannot connect to Docker daemon
+
+**Solution**:
+
+**macOS/Windows**:
+- Start Docker Desktop application
+
+**Linux**:
+```bash
+# Start Docker service
+sudo systemctl start docker
+
+# Enable auto-start
+sudo systemctl enable docker
+```
+
+### Port Conflicts
+
+#### Port already in use
+
+**Problem**: Port 3000/3001/5432/etc already in use
+
+**Solution**:
+```bash
+# Find process using port
+lsof -i :3000  # macOS/Linux
+netstat -ano | findstr :3000  # Windows
+
+# Kill process
+kill -9 <PID>  # macOS/Linux
+taskkill /PID <PID> /F  # Windows
+
+# Or change ports in .env files
+```
+
+### Docker Issues
+
+#### Services not starting
+
+**Problem**: Docker services fail to start
+
+**Solution**:
+```bash
+# Check Docker status
+docker ps -a
+
+# View logs
+mega-cli logs <service>
+
+# Reset and retry
+mega-cli reset --docker
+mega-cli setup
+```
+
+#### Out of disk space
+
+**Problem**: No space left on device
+
+**Solution**:
+```bash
+# Clean up Docker
+docker system prune -a --volumes
+
+# Remove unused images
 docker image prune -a
 
-# Xóa volumes không dùng
-docker volume prune
-
-# Xóa tất cả (cẩn thận!)
-docker system prune -a --volumes
+# Check disk usage
+docker system df
 ```
 
-### Port management
+#### Container keeps restarting
 
+**Problem**: Service container in restart loop
+
+**Solution**:
 ```bash
-# Kill process on port
-kill -9 $(lsof -t -i:3000)
+# Check logs
+docker logs <container-name>
 
-# List all ports in use
-netstat -tulpn | grep LISTEN
+# Check resource limits
+docker stats
+
+# Increase memory if needed (Docker Desktop settings)
 ```
 
-### Logs
+### Database Issues
 
+#### Cannot connect to database
+
+**Problem**: Database connection refused
+
+**Solution**:
 ```bash
-# Xem logs của service cụ thể
-autonow-fb logs api
-autonow-fb logs web
+# Verify PostgreSQL is running
+docker ps | grep postgres
 
-# Tail logs
-docker logs -f autonow_postgres
-docker logs -f autonow_redis
+# Check connection string
+cat apps/api/.env | grep DATABASE_URL
+
+# Test connection
+docker exec -it postgres psql -U postgres
+
+# Reset database
+mega-cli reset --database
 ```
+
+#### Migrations fail
+
+**Problem**: Prisma migration errors
+
+**Solution**:
+```bash
+# Reset and retry
+cd apps/api
+pnpm prisma migrate reset
+pnpm prisma migrate dev
+
+# Or use Docker
+docker compose exec api npx prisma migrate reset
+```
+
+#### Seeding fails
+
+**Problem**: Database seeding errors
+
+**Solution**:
+```bash
+# Check if database exists
+docker exec postgres psql -U postgres -c "\l"
+
+# Reset and seed
+mega-cli reset --database
+mega-cli seed --force
+```
+
+### MinIO/Storage Issues
+
+#### MinIO not accessible
+
+**Problem**: Cannot connect to MinIO
+
+**Solution**:
+```bash
+# Check if MinIO is running
+docker ps | grep minio
+
+# Access MinIO console
+open http://localhost:9001
+# Login: minioadmin / minioadmin
+
+# Reset MinIO
+docker compose down minio
+docker compose up -d minio
+```
+
+#### Bucket creation fails
+
+**Problem**: Storage bucket errors
+
+**Solution**:
+```bash
+# Manually create bucket
+docker exec -it minio mc alias set local http://localhost:9000 minioadmin minioadmin
+docker exec -it minio mc mb local/mega-facebook
+```
+
+### Network Issues
+
+#### Slow Docker image downloads
+
+**Problem**: Docker pull very slow
+
+**Solution**:
+```bash
+# Use mirror (China)
+# Add to Docker daemon config
+{
+  "registry-mirrors": ["https://docker.mirrors.ustc.edu.cn"]
+}
+
+# Restart Docker
+```
+
+#### npm/pnpm install timeout
+
+**Problem**: Package installation timeouts
+
+**Solution**:
+```bash
+# Use different registry
+npm config set registry https://registry.npmmirror.com
+
+# Clear cache
+npm cache clean --force
+pnpm store prune
+```
+
+### Environment Issues
+
+#### Environment variables not loaded
+
+**Problem**: Missing or incorrect env vars
+
+**Solution**:
+```bash
+# Regenerate env files
+mega-cli setup --force
+
+# Verify files exist
+ls -la apps/api/.env
+ls -la apps/web/.env.local
+
+# Check values
+cat apps/api/.env
+```
+
+#### Wrong environment (dev/prod)
+
+**Problem**: Running wrong environment
+
+**Solution**:
+```bash
+# For development
+docker compose -f docker/docker-compose.yml up
+
+# For production
+docker compose -f docker/docker-compose.prod.yml up
+```
+
+### Permission Issues
+
+#### File permission denied
+
+**Problem**: Cannot read/write files
+
+**Solution**:
+```bash
+# Fix ownership (Linux/macOS)
+sudo chown -R $USER:$USER .
+
+# Fix permissions
+chmod -R 755 .
+```
+
+#### Docker permission denied
+
+**Problem**: Permission denied on Docker socket
+
+**Solution**:
+```bash
+# Add user to docker group
+sudo usermod -aG docker $USER
+
+# Apply changes (or logout/login)
+newgrp docker
+```
+
+### Build Issues
+
+#### TypeScript errors
+
+**Problem**: TS compilation fails
+
+**Solution**:
+```bash
+# Clean and rebuild
+pnpm clean
+pnpm build
+
+# Generate Prisma client
+pnpm db:generate
+```
+
+#### Module not found
+
+**Problem**: Cannot find module errors
+
+**Solution**:
+```bash
+# Reinstall dependencies
+rm -rf node_modules pnpm-lock.yaml
+pnpm install
+
+# Clear cache
+pnpm store prune
+```
+
+### CLI Specific Issues
+
+#### CLI hangs or freezes
+
+**Problem**: CLI becomes unresponsive
+
+**Solution**:
+```bash
+# Kill process
+Ctrl+C
+
+# Clear CLI config
+rm -rf ~/.mega-cli
+
+# Retry
+mega-cli setup
+```
+
+#### Update check fails
+
+**Problem**: Cannot check for updates
+
+**Solution**:
+```bash
+# Skip update check
+mega-cli setup --skip-update-check
+
+# Manually update
+npm update -g @mega/cli
+```
+
+## Getting Help
+
+If you're still experiencing issues:
+
+1. **Check logs**:
+   ```bash
+   mega-cli logs <service>
+   docker compose logs -f
+   ```
+
+2. **Run diagnostics**:
+   ```bash
+   mega-cli doctor
+   ```
+
+3. **Search existing issues**:
+   https://github.com/sherlock-126/mega_facebook/issues
+
+4. **Create new issue**:
+   Include:
+   - Output of `mega-cli doctor`
+   - Error messages
+   - Steps to reproduce
+   - System information
+
+5. **Community support**:
+   - GitHub Discussions
+   - Stack Overflow tag: `mega-facebook`

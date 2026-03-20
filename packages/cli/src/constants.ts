@@ -37,11 +37,22 @@ export const CONSTANTS = {
     root: join(__dirname, '..', '..', '..'),
     envExample: '.env.example',
     dockerCompose: 'docker/docker-compose.yml',
+    dockerComposeProd: 'docker/docker-compose.prod.yml',
+    configFile: join(process.env.HOME || '', '.autonow-fb', 'config.json'),
   },
-  TIMEOUTS: {
-    dockerHealthCheck: 30000,
-    serviceStartup: 60000,
+  COMMANDS: {
+    docker: {
+      up: 'docker-compose -f docker/docker-compose.yml up -d',
+      down: 'docker-compose -f docker/docker-compose.yml down',
+      ps: 'docker-compose -f docker/docker-compose.yml ps',
+      logs: 'docker-compose -f docker/docker-compose.yml logs',
+    },
+    pnpm: {
+      install: 'pnpm install',
+      dev: 'pnpm dev',
+      build: 'pnpm build',
+      migrate: 'pnpm db:migrate',
+      seed: 'pnpm db:seed',
+    },
   },
-  CLI_STATE_FILE: '.autonow-fb-state.json',
-  CLI_CONFIG_DIR: '.autonow-fb',
-} as const;
+};

@@ -14,14 +14,6 @@ export interface CliConfig {
     colorOutput?: boolean;
     verboseLogging?: boolean;
   };
-  installation?: {
-    version?: string;
-    installPath?: string;
-    installedAt?: string;
-  };
-  r2?: {
-    baseUrl?: string;
-  };
 }
 
 export class ConfigManager {
@@ -37,7 +29,7 @@ export class ConfigManager {
     }
 
     this.store = new Conf<CliConfig>({
-      projectName: 'autonow-fb',
+      projectName: 'mega-cli',
       cwd: this.configDir,
       defaults: {
         telemetryEnabled: false,
@@ -121,30 +113,5 @@ export class ConfigManager {
     const config = this.getAll();
     logger.info('Current Configuration:');
     logger.raw(JSON.stringify(config, null, 2));
-  }
-
-  // R2 installation methods
-  getInstalledVersion(): string | undefined {
-    return this.get('installation')?.version;
-  }
-
-  getInstallPath(): string | undefined {
-    return this.get('installation')?.installPath;
-  }
-
-  saveInstallInfo(info: { version: string; installPath: string; installedAt: string }): void {
-    this.set('installation', info);
-  }
-
-  clearInstallInfo(): void {
-    this.set('installation', undefined);
-  }
-
-  getR2BaseUrl(): string | undefined {
-    return this.get('r2')?.baseUrl;
-  }
-
-  setR2BaseUrl(url: string): void {
-    this.set('r2', { baseUrl: url });
   }
 }

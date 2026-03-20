@@ -14,7 +14,7 @@ const program = new Command();
 
 program
   .name('autonow-fb')
-  .description('CLI tương tác để cài đặt và quản lý AutoNow FB')
+  .description('CLI for quick setup and management of AutoNow FB platform')
   .version(packageJson.version);
 
 // Setup command (default)
@@ -48,11 +48,11 @@ program
 // Install command
 program
   .command('install')
-  .description('Tải và cài đặt AutoNow FB từ cloud')
-  .option('-v, --version <version>', 'Phiên bản cụ thể (mặc định: latest)')
-  .option('-f, --force', 'Ghi đè cài đặt hiện tại')
-  .option('--dry-run', 'Kiểm tra phiên bản mà không cài đặt')
-  .option('--verify', 'Xác minh checksum sau khi tải')
+  .description('Download and install AutoNow FB from cloud')
+  .option('-v, --version <version>', 'Specific version (default: latest)')
+  .option('-f, --force', 'Overwrite existing installation')
+  .option('--dry-run', 'Check version without installing')
+  .option('--verify', 'Verify checksums after download')
   .action(async (options) => {
     const { installCommand } = await import('./commands/install.js');
     await installCommand(options);
@@ -61,8 +61,8 @@ program
 // Update command
 program
   .command('update')
-  .description('Kiểm tra và cập nhật lên phiên bản mới')
-  .option('--check', 'Chỉ kiểm tra, không cập nhật')
+  .description('Check and update to latest version')
+  .option('--check', 'Check only, do not update')
   .action(async (options) => {
     const { updateCommand } = await import('./commands/update.js');
     await updateCommand(options);
@@ -71,8 +71,8 @@ program
 // Version command
 program
   .command('version')
-  .description('Hiển thị thông tin phiên bản')
-  .option('--remote', 'Hiển thị phiên bản có sẵn trên cloud')
+  .description('Show version information')
+  .option('--remote', 'Show available versions on cloud')
   .action(async (options) => {
     const { versionCommand } = await import('./commands/version.js');
     await versionCommand(options);
@@ -81,7 +81,7 @@ program
 // Start command
 program
   .command('start')
-  .description('Khởi động tất cả dịch vụ')
+  .description('Start all services')
   .action(async () => {
     const { startCommand } = await import('./commands/start.js');
     await startCommand();
@@ -90,7 +90,7 @@ program
 // Stop command
 program
   .command('stop')
-  .description('Dừng tất cả dịch vụ')
+  .description('Stop all services')
   .action(async () => {
     const { stopCommand } = await import('./commands/stop.js');
     await stopCommand();
@@ -99,7 +99,7 @@ program
 // Logs command
 program
   .command('logs [service]')
-  .description('Xem logs của dịch vụ')
+  .description('View service logs')
   .action(async (service) => {
     const { logsCommand } = await import('./commands/logs.js');
     await logsCommand(service);
@@ -108,10 +108,10 @@ program
 // Seed command
 program
   .command('seed')
-  .description('Tạo dữ liệu mẫu')
-  .option('--admin-only', 'Chỉ tạo tài khoản admin')
-  .option('--full', 'Tạo toàn bộ dữ liệu demo')
-  .option('--force', 'Ghi đè dữ liệu hiện có')
+  .description('Generate sample data')
+  .option('--admin-only', 'Create admin account only')
+  .option('--full', 'Create full demo dataset')
+  .option('--force', 'Overwrite existing data')
   .action(async (options) => {
     const { seedCommand } = await import('./commands/seed.js');
     await seedCommand(options);
@@ -122,8 +122,8 @@ program.parse();
 
 // Show help if no command provided
 if (!process.argv.slice(2).length) {
-  console.log(chalk.cyan('\n🚀 Chào mừng đến với AutoNow FB CLI!\n'));
-  console.log('Chạy trình cài đặt để bắt đầu:\n');
+  console.log(chalk.cyan('\n🚀 Welcome to AutoNow FB CLI!\n'));
+  console.log('Run the setup wizard to get started:\n');
   console.log('  ' + chalk.bold('npx autonow-fb setup'));
-  console.log('\nHoặc dùng --help để xem tất cả các lệnh.\n');
+  console.log('\nOr use --help to see all available commands.\n');
 }
