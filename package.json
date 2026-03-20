@@ -15,7 +15,10 @@
     "db:generate": "pnpm --filter api prisma:generate",
     "db:migrate": "pnpm --filter api prisma:migrate",
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
-    "docker:down": "docker compose -f docker/docker-compose.yml down"
+    "docker:down": "docker compose -f docker/docker-compose.yml down",
+    "cli:build": "pnpm --filter @mega/cli build",
+    "cli:dev": "pnpm --filter @mega/cli dev",
+    "cli:publish": "pnpm --filter @mega/cli publish"
   },
   "devDependencies": {
     "prettier": "^3.2.0",

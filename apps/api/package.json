@@ -11,6 +11,8 @@
     "test:cov": "jest --coverage",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "ts-node prisma/seed.ts",
+    "seed": "ts-node prisma/seed.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -45,6 +47,7 @@
     "socket.io": "^4.7.0"
   },
   "devDependencies": {
+    "@faker-js/faker": "^8.4.1",
     "@nestjs/cli": "^10.4.0",
     "@nestjs/schematics": "^10.1.0",
     "@nestjs/testing": "^10.4.0",

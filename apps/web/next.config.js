@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ['@mega/shared', '@mega/ui'],
+  output: 'standalone', // Enable standalone output for Docker production builds
   images: {
     remotePatterns: [
       {

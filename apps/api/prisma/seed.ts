@@ -1,213 +1,274 @@
-import { PrismaClient, UserStatus, Gender, FriendshipStatus, PostVisibility, ReactionType, ReactionTargetType } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import { PrismaClient, FriendshipStatus } from '@prisma/client';
+import { createAdminUser, createTestUsers, createRandomUsers } from './seed-data/users';
+import { createPosts, createSamplePosts } from './seed-data/posts';
+import { createReactions, createComments, createCommentReactions } from './seed-data/interactions';
+import { createConversations, createSampleConversation } from './seed-data/messages';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log('Seeding database...');
+interface SeedOptions {
+  adminOnly?: boolean;
+  full?: boolean;
+  force?: boolean;
+}
 
-  const adminPassword = await bcrypt.hash('Admin123!', 12);
-  const testPassword = await bcrypt.hash('Test1234!', 12);
+function parseArgs(): SeedOptions {
+  const args = process.argv.slice(2);
+  return {
+    adminOnly: args.includes('--admin-only'),
+    full: args.includes('--full'),
+    force: args.includes('--force'),
+  };
+}
 
-  // Admin user
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@mega.dev' },
-    update: {},
-    create: {
-      email: 'admin@mega.dev',
-      passwordHash: adminPassword,
-      status: UserStatus.ACTIVE,
-    },
-  });
-  await prisma.profile.upsert({
-    where: { userId: admin.id },
-    update: {},
-    create: {
-      userId: admin.id,
-      firstName: 'Admin',
-      lastName: 'User',
-      displayName: 'Admin',
-      bio: 'Platform administrator',
-    },
-  });
-  console.log('  Admin user: admin@mega.dev (with profile)');
+async function checkExistingData(): Promise<boolean> {
+  const userCount = await prisma.user.count();
+  return userCount > 0;
+}
 
-  // Test users
-  const genders = [Gender.MALE, Gender.FEMALE, Gender.OTHER, Gender.PREFER_NOT_TO_SAY, Gender.MALE];
-  for (let i = 1; i <= 5; i++) {
-    const email = `user${i}@mega.dev`;
-    const user = await prisma.user.upsert({
-      where: { email },
-      update: {},
-      create: {
-        email,
-        passwordHash: testPassword,
-        status: UserStatus.ACTIVE,
-      },
-    });
-    await prisma.profile.upsert({
-      where: { userId: user.id },
-      update: {},
-      create: {
-        userId: user.id,
-        firstName: `User`,
-        lastName: `${i}`,
-        displayName: `Test User ${i}`,
-        bio: `Hi, I am test user ${i}`,
-        gender: genders[i - 1],
-        location: 'Ho Chi Minh City',
-      },
-    });
-    console.log(`  Test user: ${email} (with profile)`);
+async function seedAdminOnly() {
+  console.log('🌱 Seeding admin account only...');
+
+  const admin = await createAdminUser(prisma);
+  console.log('✅ Admin user created: admin@mega.dev');
+
+  return { users: [admin], posts: [], comments: [] };
+}
+
+async function seedSampleData() {
+  console.log('🌱 Seeding sample data...');
+
+  // Create admin and test users
+  console.log('👥 Creating users...');
+  const admin = await createAdminUser(prisma);
+  const testUsers = await createTestUsers(prisma, 5);
+  const allUsers = [admin, ...testUsers];
+
+  console.log(`  ✅ Created admin + ${testUsers.length} test users`);
+
+  // Create friendships
+  console.log('🤝 Creating friendships...');
+  const friendshipCount = await createFriendships(prisma, testUsers);
+  console.log(`  ✅ Created ${friendshipCount} friendships`);
+
+  // Create sample posts
+  console.log('📝 Creating posts...');
+  const posts = await createSamplePosts(prisma, testUsers);
+  console.log(`  ✅ Created ${posts.length} posts`);
+
+  // Create interactions
+  console.log('💬 Creating interactions...');
+  const reactions = await createReactions(prisma, allUsers, posts, 0.4);
+  const comments = await createComments(prisma, allUsers, posts, 0.3);
+  console.log(`  ✅ Created ${reactions.length} reactions and ${comments.length} comments`);
+
+  // Create sample conversations
+  console.log('💌 Creating messages...');
+  if (testUsers.length >= 2) {
+    await createSampleConversation(prisma, testUsers[0], testUsers[1]);
+    console.log('  ✅ Created sample conversation');
   }
 
-  // Seed friendships between test users
-  const allUsers = await prisma.user.findMany({ orderBy: { email: 'asc' } });
-  const userMap = new Map(allUsers.map((u) => [u.email, u]));
+  return { users: allUsers, posts, comments };
+}
 
-  const user1 = userMap.get('user1@mega.dev')!;
-  const user2 = userMap.get('user2@mega.dev')!;
-  const user3 = userMap.get('user3@mega.dev')!;
-  const user4 = userMap.get('user4@mega.dev')!;
+async function seedFullData() {
+  console.log('🌱 Seeding full demo dataset...');
 
-  // user1 and user2 are friends
-  await prisma.friendship.upsert({
-    where: { requesterId_addresseeId: { requesterId: user1.id, addresseeId: user2.id } },
-    update: {},
-    create: {
-      requesterId: user1.id,
-      addresseeId: user2.id,
-      status: FriendshipStatus.ACCEPTED,
-    },
-  });
-  console.log('  Friendship: user1 <-> user2 (ACCEPTED)');
+  // Create admin, test users, and random users
+  console.log('👥 Creating users...');
+  const admin = await createAdminUser(prisma);
+  const testUsers = await createTestUsers(prisma, 5);
+  const randomUsers = await createRandomUsers(prisma, 15);
+  const allUsers = [admin, ...testUsers, ...randomUsers];
 
-  // user1 and user3 are friends
-  await prisma.friendship.upsert({
-    where: { requesterId_addresseeId: { requesterId: user1.id, addresseeId: user3.id } },
-    update: {},
-    create: {
-      requesterId: user1.id,
-      addresseeId: user3.id,
-      status: FriendshipStatus.ACCEPTED,
-    },
-  });
-  console.log('  Friendship: user1 <-> user3 (ACCEPTED)');
+  console.log(`  ✅ Created ${allUsers.length} total users`);
 
-  // user4 sent pending request to user1
-  await prisma.friendship.upsert({
-    where: { requesterId_addresseeId: { requesterId: user4.id, addresseeId: user1.id } },
-    update: {},
-    create: {
-      requesterId: user4.id,
-      addresseeId: user1.id,
-      status: FriendshipStatus.PENDING,
-    },
-  });
-  console.log('  Friendship: user4 -> user1 (PENDING)');
+  // Create comprehensive friendships
+  console.log('🤝 Creating friendship network...');
+  const friendshipCount = await createFriendshipNetwork(prisma, allUsers);
+  console.log(`  ✅ Created ${friendshipCount} friendships`);
 
-  // Seed sample posts
-  const existingPostCount = await prisma.post.count();
-  if (existingPostCount === 0) {
-    // user1's public post
-    await prisma.post.create({
-      data: {
-        authorId: user1.id,
-        content: 'Hello everyone! This is my first post on Mega Facebook. Excited to connect with friends here!',
-        visibility: PostVisibility.PUBLIC,
+  // Create many posts
+  console.log('📝 Creating posts...');
+  const samplePosts = await createSamplePosts(prisma, testUsers);
+  const randomPosts = await createPosts(prisma, randomUsers, 2);
+  const allPosts = [...samplePosts, ...randomPosts];
+  console.log(`  ✅ Created ${allPosts.length} posts with images`);
+
+  // Create rich interactions
+  console.log('💬 Creating interactions...');
+  const reactions = await createReactions(prisma, allUsers, allPosts, 0.5);
+  const comments = await createComments(prisma, allUsers, allPosts, 0.4);
+  const commentReactions = await createCommentReactions(prisma, allUsers, comments, 0.2);
+  console.log(`  ✅ Created ${reactions.length} post reactions, ${comments.length} comments, ${commentReactions.length} comment reactions`);
+
+  // Create conversations
+  console.log('💌 Creating conversations...');
+  const conversations = await createConversations(prisma, allUsers, 10);
+  console.log(`  ✅ Created ${conversations.length} conversations with messages`);
+
+  // Create notifications (they would be auto-generated by the app in real usage)
+  console.log('🔔 Note: Notifications will be generated automatically when users interact');
+
+  return { users: allUsers, posts: allPosts, comments };
+}
+
+async function createFriendships(prisma: PrismaClient, users: any[]) {
+  let count = 0;
+
+  if (users.length >= 4) {
+    // Create some accepted friendships
+    await prisma.friendship.upsert({
+      where: { requesterId_addresseeId: { requesterId: users[0].id, addresseeId: users[1].id } },
+      update: {},
+      create: {
+        requesterId: users[0].id,
+        addresseeId: users[1].id,
+        status: FriendshipStatus.ACCEPTED,
       },
     });
-    console.log('  Post: user1 - public post');
+    count++;
 
-    // user1's friends-only post
-    await prisma.post.create({
-      data: {
-        authorId: user1.id,
-        content: 'This is a friends-only post. Only my friends can see this.',
-        visibility: PostVisibility.FRIENDS_ONLY,
+    await prisma.friendship.upsert({
+      where: { requesterId_addresseeId: { requesterId: users[0].id, addresseeId: users[2].id } },
+      update: {},
+      create: {
+        requesterId: users[0].id,
+        addresseeId: users[2].id,
+        status: FriendshipStatus.ACCEPTED,
       },
     });
-    console.log('  Post: user1 - friends-only post');
+    count++;
 
-    // user2's public post
-    await prisma.post.create({
-      data: {
-        authorId: user2.id,
-        content: 'Beautiful day in Ho Chi Minh City! The weather is perfect for a walk in the park.',
-        visibility: PostVisibility.PUBLIC,
+    // Create a pending request
+    await prisma.friendship.upsert({
+      where: { requesterId_addresseeId: { requesterId: users[3].id, addresseeId: users[0].id } },
+      update: {},
+      create: {
+        requesterId: users[3].id,
+        addresseeId: users[0].id,
+        status: FriendshipStatus.PENDING,
       },
     });
-    console.log('  Post: user2 - public post');
-
-    // user3's post
-    await prisma.post.create({
-      data: {
-        authorId: user3.id,
-        content: 'Just finished reading a great book. Highly recommend "Clean Code" by Robert C. Martin!',
-        visibility: PostVisibility.PUBLIC,
-      },
-    });
-    console.log('  Post: user3 - public post');
-
-    // user4's post (not friends with user1)
-    await prisma.post.create({
-      data: {
-        authorId: user4.id,
-        content: 'Anyone up for a coding challenge this weekend? Let me know in the comments!',
-        visibility: PostVisibility.PUBLIC,
-      },
-    });
-    console.log('  Post: user4 - public post');
-  } else {
-    console.log('  Posts already exist, skipping post seeding');
+    count++;
   }
 
-  // Seed reactions and comments
-  const existingReactionCount = await prisma.reaction.count();
-  if (existingReactionCount === 0) {
-    const posts = await prisma.post.findMany({ orderBy: { createdAt: 'asc' } });
-    if (posts.length > 0) {
-      // Reactions on first post
-      await prisma.reaction.create({
-        data: { userId: user2.id, targetType: ReactionTargetType.POST, targetId: posts[0].id, type: ReactionType.LIKE },
-      });
-      await prisma.reaction.create({
-        data: { userId: user3.id, targetType: ReactionTargetType.POST, targetId: posts[0].id, type: ReactionType.LOVE },
-      });
-      await prisma.reaction.create({
-        data: { userId: user4.id, targetType: ReactionTargetType.POST, targetId: posts[0].id, type: ReactionType.HAHA },
-      });
-      console.log('  Reactions: 3 reactions on first post');
+  return count;
+}
 
-      // Comments on first post
-      const comment1 = await prisma.comment.create({
-        data: { postId: posts[0].id, userId: user2.id, content: 'Welcome to the platform! Great first post!' },
-      });
-      const comment2 = await prisma.comment.create({
-        data: { postId: posts[0].id, userId: user3.id, content: 'Excited to have you here!' },
-      });
-      // Reply to comment1
-      await prisma.comment.create({
-        data: { postId: posts[0].id, userId: user1.id, parentId: comment1.id, content: 'Thank you! Happy to be here!' },
-      });
-      console.log('  Comments: 2 top-level + 1 reply on first post');
+async function createFriendshipNetwork(prisma: PrismaClient, users: any[]) {
+  let count = 0;
 
-      // Reaction on a comment
-      await prisma.reaction.create({
-        data: { userId: user1.id, targetType: ReactionTargetType.COMMENT, targetId: comment2.id, type: ReactionType.LIKE },
-      });
-      console.log('  Reactions: 1 reaction on comment');
+  // Create a realistic social network
+  for (let i = 0; i < users.length; i++) {
+    // Each user has 2-8 friends
+    const friendCount = Math.min(
+      Math.floor(Math.random() * 7) + 2,
+      users.length - 1
+    );
+
+    const potentialFriends = users.filter(u => u.id !== users[i].id);
+    const selectedFriends = potentialFriends
+      .sort(() => Math.random() - 0.5)
+      .slice(0, friendCount);
+
+    for (const friend of selectedFriends) {
+      try {
+        // Check if friendship already exists in either direction
+        const existing = await prisma.friendship.findFirst({
+          where: {
+            OR: [
+              { requesterId: users[i].id, addresseeId: friend.id },
+              { requesterId: friend.id, addresseeId: users[i].id },
+            ],
+          },
+        });
+
+        if (!existing) {
+          await prisma.friendship.create({
+            data: {
+              requesterId: users[i].id,
+              addresseeId: friend.id,
+              status: Math.random() < 0.9
+                ? FriendshipStatus.ACCEPTED
+                : FriendshipStatus.PENDING,
+            },
+          });
+          count++;
+        }
+      } catch (error) {
+        // Skip on unique constraint violation
+      }
     }
-  } else {
-    console.log('  Reactions/comments already exist, skipping');
   }
 
-  console.log('Seeding complete.');
+  return count;
+}
+
+async function main() {
+  const options = parseArgs();
+
+  console.log('========================================');
+  console.log('🚀 Mega Facebook Database Seeder');
+  console.log('========================================');
+
+  // Check for existing data
+  const hasExistingData = await checkExistingData();
+
+  if (hasExistingData && !options.force) {
+    console.log('⚠️  Database already contains data.');
+    console.log('   Use --force to re-run seeding anyway.');
+    return;
+  }
+
+  if (options.force && hasExistingData) {
+    console.log('⚠️  Force mode: Adding data to existing database...');
+  }
+
+  try {
+    // Run in transaction for data consistency
+    await prisma.$transaction(async (tx) => {
+      let result;
+
+      if (options.adminOnly) {
+        result = await seedAdminOnly();
+      } else if (options.full) {
+        result = await seedFullData();
+      } else {
+        // Default: sample data
+        result = await seedSampleData();
+      }
+
+      console.log('\n========================================');
+      console.log('✅ Seeding completed successfully!');
+      console.log('========================================');
+      console.log('\n📊 Summary:');
+      console.log(`  • Users: ${result.users.length}`);
+      console.log(`  • Posts: ${result.posts.length}`);
+      console.log(`  • Comments: ${result.comments.length}`);
+
+      if (result.users.length > 0) {
+        console.log('\n🔑 Test Accounts:');
+        console.log('  • admin@mega.dev / Admin123!');
+        if (!options.adminOnly) {
+          console.log('  • user1@mega.dev / Test1234!');
+          console.log('  • user2@mega.dev / Test1234!');
+          console.log('  • (and more...)');
+        }
+      }
+    }, {
+      timeout: 60000, // 60 second timeout
+    });
+  } catch (error) {
+    console.error('❌ Seeding failed:', error);
+    process.exit(1);
+  }
 }
 
 main()
   .catch((error) => {
-    console.error('Seed failed:', error);
+    console.error('❌ Fatal error:', error);
     process.exit(1);
   })
   .finally(async () => {
