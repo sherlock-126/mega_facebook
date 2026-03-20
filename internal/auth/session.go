@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-rod/rod"
 	"github.com/sherlock-126/mega_facebook/internal/browser"
-	"github.com/sherlock-126/mega_facebook/internal/selectors"
 )
 
 // SessionState represents the authentication state of a Facebook session.
@@ -22,6 +21,26 @@ const (
 
 // facebookURL is the target URL for session checks.
 const facebookURL = "https://www.facebook.com"
+
+// loggedInSelectors indicate the user is logged in.
+var loggedInSelectors = []string{
+	"[role='navigation']",
+	"[aria-label='Facebook']",
+	"div[data-pagelet='Stories']",
+}
+
+// loggedOutSelectors indicate the user needs to log in.
+var loggedOutSelectors = []string{
+	"input[name='email']",
+	"input[name='pass']",
+	"button[name='login']",
+}
+
+// twoFASelectors indicate a 2FA prompt.
+var twoFASelectors = []string{
+	"input[name='approvals_code']",
+	"#approvals_code",
+}
 
 // ClassifyURL classifies session state based on URL patterns alone.
 // Returns empty string if URL is not conclusive.
@@ -64,7 +83,7 @@ func CheckSessionState(b *rod.Browser) (SessionState, error) {
 		if state := ClassifyURL(info.URL); state != "" {
 			// If checkpoint, check if it's specifically a 2FA prompt
 			if state == StateCheckpoint {
-				for _, sel := range selectors.TwoFA {
+				for _, sel := range twoFASelectors {
 					has, _, err := page.Has(sel)
 					if err == nil && has {
 						return State2FARequired, nil
@@ -76,7 +95,7 @@ func CheckSessionState(b *rod.Browser) (SessionState, error) {
 	}
 
 	// Check for login form (logged out)
-	for _, sel := range selectors.LoggedOut {
+	for _, sel := range loggedOutSelectors {
 		has, _, err := page.Has(sel)
 		if err == nil && has {
 			return StateLoggedOut, nil
@@ -84,7 +103,7 @@ func CheckSessionState(b *rod.Browser) (SessionState, error) {
 	}
 
 	// Check for logged-in indicators
-	for _, sel := range selectors.LoggedIn {
+	for _, sel := range loggedInSelectors {
 		has, _, err := page.Has(sel)
 		if err == nil && has {
 			return StateLoggedIn, nil
