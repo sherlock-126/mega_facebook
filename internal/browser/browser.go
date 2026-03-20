@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/proto"
+	"github.com/go-rod/stealth"
 )
 
 const (
@@ -55,19 +55,27 @@ func Connect(wsURL string) (*ConnectResult, error) {
 	return &ConnectResult{Browser: browser}, nil
 }
 
+// StealthPage creates a new page with go-rod/stealth anti-detection patches applied.
+// This injects JavaScript via EvalOnNewDocument to mask navigator.webdriver, plugins,
+// WebGL vendor/renderer, and other automation markers before any page scripts run.
+// All browser automation pages should be created through this function.
+func StealthPage(b *rod.Browser) (*rod.Page, error) {
+	if b == nil {
+		return nil, fmt.Errorf("cannot create stealth page: browser is nil")
+	}
+	page, err := stealth.Page(b)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stealth page: %w", err)
+	}
+	return page, nil
+}
+
 // CheckFacebookLogin navigates to facebook.com and checks if the user is logged in.
 // Returns (true, nil) if logged in, (false, nil) if not, or (false, error) on failure.
 func CheckFacebookLogin(browser *rod.Browser) (bool, error) {
-	page, err := browser.Page(proto.TargetCreateTarget{URL: ""})
+	page, err := StealthPage(browser)
 	if err != nil {
-		pages, pErr := browser.Pages()
-		if pErr != nil {
-			return false, fmt.Errorf("failed to get browser pages: %w", pErr)
-		}
-		page = pages.First()
-		if page == nil {
-			return false, fmt.Errorf("no pages available in browser")
-		}
+		return false, fmt.Errorf("failed to open page for login check: %w", err)
 	}
 
 	if err := page.Timeout(navigationTimeout).Navigate(facebookURL); err != nil {

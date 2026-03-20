@@ -4,10 +4,13 @@ go 1.22.5
 
 require (
 	github.com/go-rod/rod v0.116.2
+	github.com/go-rod/stealth v0.4.9
+	github.com/pquerna/otp v1.4.0
 	github.com/spf13/cobra v1.10.2
 )
 
 require (
+	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/ysmood/fetchup v0.2.3 // indirect
