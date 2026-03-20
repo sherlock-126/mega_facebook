@@ -90,12 +90,12 @@ jobs:
       - name: Create API artifact
         run: |
           cd apps/api
-          tar -czf ../../api.tar.gz \
-            dist \
-            prisma \
-            package.json \
-            tsconfig*.json \
-            .env.example
+          # Create list of files that exist
+          FILES="dist prisma package.json"
+          [ -f tsconfig.json ] && FILES="$FILES tsconfig.json"
+          [ -f tsconfig.build.json ] && FILES="$FILES tsconfig.build.json"
+          [ -f .env.example ] && FILES="$FILES .env.example"
+          tar -czf ../../api.tar.gz $FILES
 
       - name: Create Web artifact
         run: |
