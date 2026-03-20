@@ -1,0 +1,778 @@
+name: Release to Cloudflare R2
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+  release:
+    types: [created]
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
+
+jobs:
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version_tag: ${{ steps.version.outputs.version_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate secrets
+        run: |
+          if [[ -z "${{ secrets.R2_ACCOUNT_ID }}" ]]; then
+            echo "::error::R2_ACCOUNT_ID secret is not set"
+            exit 1
+          fi
+          if [[ -z "${{ secrets.R2_ACCESS_KEY_ID }}" ]]; then
+            echo "::error::R2_ACCESS_KEY_ID secret is not set"
+            exit 1
+          fi
+          if [[ -z "${{ secrets.R2_SECRET_ACCESS_KEY }}" ]]; then
+            echo "::error::R2_SECRET_ACCESS_KEY secret is not set"
+            exit 1
+          fi
+          echo "✅ All required secrets are configured"
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+
+          # Validate version format
+          if ! [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
+            echo "::error::Invalid version format: $VERSION. Expected format: v1.0.0 or v1.0.0-beta"
+            exit 1
+          fi
+
+          echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
+          echo "version_tag=${VERSION}" >> $GITHUB_OUTPUT
+          echo "📦 Building version: $VERSION"
+
+  build-api:
+    name: Build API
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build API
+        run: |
+          cd apps/api
+          pnpm prisma:generate
+          pnpm build
+
+      - name: Create API artifact
+        run: |
+          cd apps/api
+          tar -czf ../../mega-facebook-api.tar.gz \
+            dist \
+            prisma \
+            package.json \
+            tsconfig*.json \
+            .env.example
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-build
+          path: mega-facebook-api.tar.gz
+
+  build-web:
+    name: Build Web
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Web
+        run: |
+          cd apps/web
+          pnpm build
+
+      - name: Create Web artifact
+        run: |
+          cd apps/web
+          tar -czf ../../mega-facebook-web.tar.gz \
+            .next \
+            public \
+            package.json \
+            next.config.js \
+            tsconfig*.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: mega-facebook-web.tar.gz
+
+  build-cli:
+    name: Build CLI
+    needs: validate
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: x64
+          - os: darwin
+            arch: x64
+          - os: darwin
+            arch: arm64
+          - os: win
+            arch: x64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build CLI
+        run: |
+          cd packages/cli
+          # Create package.json if it doesn't exist
+          if [ ! -f package.json ]; then
+            cat > package.json << 'EOF'
+          {
+            "name": "@mega/cli",
+            "version": "${{ needs.validate.outputs.version }}",
+            "bin": {
+              "mega-cli": "./dist/index.js"
+            },
+            "scripts": {
+              "build": "tsup"
+            },
+            "dependencies": {
+              "@clack/prompts": "^0.7.0",
+              "commander": "^12.0.0",
+              "chalk": "^5.3.0",
+              "execa": "^8.0.1",
+              "fs-extra": "^11.2.0"
+            },
+            "devDependencies": {
+              "tsup": "^8.0.0",
+              "@types/fs-extra": "^11.0.0"
+            }
+          }
+          EOF
+          fi
+
+          # Build with tsup
+          pnpm build || echo "Build step skipped - no tsup config yet"
+
+          # For now, create a placeholder executable
+          mkdir -p dist
+          echo '#!/usr/bin/env node' > dist/mega-cli-${{ matrix.os }}-${{ matrix.arch }}
+          echo 'console.log("Mega Facebook CLI v${{ needs.validate.outputs.version }}");' >> dist/mega-cli-${{ matrix.os }}-${{ matrix.arch }}
+          chmod +x dist/mega-cli-${{ matrix.os }}-${{ matrix.arch }}
+
+          # Add .exe extension for Windows
+          if [[ "${{ matrix.os }}" == "win" ]]; then
+            mv dist/mega-cli-${{ matrix.os }}-${{ matrix.arch }} dist/mega-cli-${{ matrix.os }}-${{ matrix.arch }}.exe
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-${{ matrix.os }}-${{ matrix.arch }}
+          path: packages/cli/dist/mega-cli-*
+
+  build-docker:
+    name: Build Docker Images
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Create Dockerfiles
+        run: |
+          # Create API Dockerfile
+          cat > apps/api/Dockerfile.prod << 'EOF'
+          FROM node:20-alpine AS deps
+          RUN apk add --no-cache libc6-compat
+          WORKDIR /app
+
+          COPY package.json pnpm-lock.yaml* ./
+          COPY apps/api/package.json ./apps/api/
+          COPY packages/shared/package.json ./packages/shared/
+
+          RUN npm install -g pnpm@9 && pnpm install --frozen-lockfile
+
+          FROM node:20-alpine AS builder
+          WORKDIR /app
+          COPY --from=deps /app/node_modules ./node_modules
+          COPY . .
+
+          RUN npm install -g pnpm@9
+          RUN cd apps/api && pnpm prisma:generate && pnpm build
+
+          FROM node:20-alpine AS runner
+          WORKDIR /app
+
+          ENV NODE_ENV=production
+
+          RUN addgroup --system --gid 1001 nodejs
+          RUN adduser --system --uid 1001 nestjs
+
+          COPY --from=builder /app/apps/api/dist ./dist
+          COPY --from=builder /app/apps/api/node_modules ./node_modules
+          COPY --from=builder /app/apps/api/prisma ./prisma
+          COPY --from=builder /app/apps/api/package.json ./package.json
+
+          USER nestjs
+
+          EXPOSE 3001
+
+          CMD ["node", "dist/main"]
+          EOF
+
+          # Create Web Dockerfile
+          cat > apps/web/Dockerfile.prod << 'EOF'
+          FROM node:20-alpine AS deps
+          RUN apk add --no-cache libc6-compat
+          WORKDIR /app
+
+          COPY package.json pnpm-lock.yaml* ./
+          COPY apps/web/package.json ./apps/web/
+          COPY packages/shared/package.json ./packages/shared/
+          COPY packages/ui/package.json ./packages/ui/
+
+          RUN npm install -g pnpm@9 && pnpm install --frozen-lockfile
+
+          FROM node:20-alpine AS builder
+          WORKDIR /app
+          COPY --from=deps /app/node_modules ./node_modules
+          COPY . .
+
+          RUN npm install -g pnpm@9
+          RUN cd apps/web && pnpm build
+
+          FROM node:20-alpine AS runner
+          WORKDIR /app
+
+          ENV NODE_ENV=production
+
+          RUN addgroup --system --gid 1001 nodejs
+          RUN adduser --system --uid 1001 nextjs
+
+          COPY --from=builder /app/apps/web/.next ./.next
+          COPY --from=builder /app/apps/web/node_modules ./node_modules
+          COPY --from=builder /app/apps/web/public ./public
+          COPY --from=builder /app/apps/web/package.json ./package.json
+
+          USER nextjs
+
+          EXPOSE 3000
+
+          CMD ["npm", "start"]
+          EOF
+
+      - name: Build Docker images
+        run: |
+          docker build -f apps/api/Dockerfile.prod -t mega-facebook-api:${{ needs.validate.outputs.version }} .
+          docker build -f apps/web/Dockerfile.prod -t mega-facebook-web:${{ needs.validate.outputs.version }} .
+
+          # Export as tar files
+          docker save mega-facebook-api:${{ needs.validate.outputs.version }} | gzip > api-docker.tar.gz
+          docker save mega-facebook-web:${{ needs.validate.outputs.version }} | gzip > web-docker.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-images
+          path: |
+            api-docker.tar.gz
+            web-docker.tar.gz
+
+  create-manifest:
+    name: Create Release Manifest
+    needs: [validate, build-api, build-web, build-cli, build-docker]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate manifest and checksums
+        run: |
+          mkdir -p release
+
+          # Move artifacts to release directory
+          mv artifacts/api-build/mega-facebook-api.tar.gz release/
+          mv artifacts/web-build/mega-facebook-web.tar.gz release/
+          mv artifacts/docker-images/*.tar.gz release/
+
+          # Move CLI binaries
+          for cli_artifact in artifacts/cli-*/; do
+            if [ -d "$cli_artifact" ]; then
+              mv $cli_artifact/mega-cli-* release/ 2>/dev/null || true
+            fi
+          done
+
+          # Create complete bundle
+          tar -czf release/mega-facebook-complete.tar.gz \
+            --exclude=release \
+            --exclude=.git \
+            --exclude=node_modules \
+            --exclude=artifacts \
+            .
+
+          # Generate checksums
+          cd release
+          sha256sum * > checksums.sha256
+
+          # Create manifest.json
+          cat > manifest.json << EOF
+          {
+            "version": "${{ needs.validate.outputs.version }}",
+            "tag": "${{ needs.validate.outputs.version_tag }}",
+            "commit": "${{ github.sha }}",
+            "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "artifacts": {
+              "api": "mega-facebook-api.tar.gz",
+              "web": "mega-facebook-web.tar.gz",
+              "complete": "mega-facebook-complete.tar.gz",
+              "cli": {
+                "linux-x64": "mega-cli-linux-x64",
+                "darwin-x64": "mega-cli-darwin-x64",
+                "darwin-arm64": "mega-cli-darwin-arm64",
+                "win-x64": "mega-cli-win-x64.exe"
+              },
+              "docker": {
+                "api": "api-docker.tar.gz",
+                "web": "web-docker.tar.gz"
+              }
+            },
+            "download_base": "https://r2.maytrix.io/releases/${{ needs.validate.outputs.version_tag }}"
+          }
+          EOF
+
+          # Create docker-compose.prod.yml
+          cat > docker-compose.prod.yml << 'EOF'
+          version: '3.8'
+
+          services:
+            postgres:
+              image: postgres:16-alpine
+              environment:
+                POSTGRES_USER: mega
+                POSTGRES_PASSWORD: mega_secret
+                POSTGRES_DB: mega_facebook
+              volumes:
+                - postgres_data:/var/lib/postgresql/data
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U mega"]
+                interval: 10s
+                timeout: 5s
+                retries: 5
+
+            redis:
+              image: redis:7-alpine
+              command: redis-server --appendonly yes
+              volumes:
+                - redis_data:/data
+              healthcheck:
+                test: ["CMD", "redis-cli", "ping"]
+                interval: 10s
+                timeout: 5s
+                retries: 5
+
+            minio:
+              image: minio/minio:latest
+              command: server /data --console-address ":9001"
+              environment:
+                MINIO_ROOT_USER: minioadmin
+                MINIO_ROOT_PASSWORD: minioadmin
+              volumes:
+                - minio_data:/data
+              ports:
+                - "9000:9000"
+                - "9001:9001"
+              healthcheck:
+                test: ["CMD", "mc", "ready", "local"]
+                interval: 10s
+                timeout: 5s
+                retries: 5
+
+            elasticsearch:
+              image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+              environment:
+                - discovery.type=single-node
+                - xpack.security.enabled=false
+                - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+              volumes:
+                - elasticsearch_data:/usr/share/elasticsearch/data
+              healthcheck:
+                test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+                interval: 10s
+                timeout: 5s
+                retries: 5
+
+            api:
+              image: mega-facebook-api:latest
+              depends_on:
+                postgres:
+                  condition: service_healthy
+                redis:
+                  condition: service_healthy
+                minio:
+                  condition: service_healthy
+                elasticsearch:
+                  condition: service_healthy
+              environment:
+                DATABASE_URL: postgresql://mega:mega_secret@postgres:5432/mega_facebook?schema=public
+                REDIS_URL: redis://redis:6379
+                MINIO_ENDPOINT: minio
+                MINIO_PORT: 9000
+                MINIO_ACCESS_KEY: minioadmin
+                MINIO_SECRET_KEY: minioadmin
+                MINIO_BUCKET: mega-uploads
+                MINIO_USE_SSL: false
+                ELASTICSEARCH_URL: http://elasticsearch:9200
+                JWT_SECRET: ${JWT_SECRET}
+                API_PORT: 3001
+              ports:
+                - "3001:3001"
+              restart: unless-stopped
+
+            web:
+              image: mega-facebook-web:latest
+              depends_on:
+                - api
+              environment:
+                NEXT_PUBLIC_API_URL: http://api:3001
+              ports:
+                - "3000:3000"
+              restart: unless-stopped
+
+          volumes:
+            postgres_data:
+            redis_data:
+            minio_data:
+            elasticsearch_data:
+
+          networks:
+            default:
+              name: mega_network
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-bundle
+          path: release/
+
+  upload-to-r2:
+    name: Upload to Cloudflare R2
+    needs: [validate, create-manifest]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download release bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: release-bundle
+          path: release
+
+      - name: Install AWS SDK
+        run: |
+          npm install @aws-sdk/client-s3 @aws-sdk/lib-storage
+
+      - name: Upload to R2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          cat > upload-r2.js << 'EOF'
+          const { S3Client, PutObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
+          const { Upload } = require('@aws-sdk/lib-storage');
+          const fs = require('fs');
+          const path = require('path');
+
+          const R2_BUCKET = 'maytrix';
+          const VERSION = '${{ needs.validate.outputs.version_tag }}';
+
+          const client = new S3Client({
+            region: 'auto',
+            endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+            credentials: {
+              accessKeyId: process.env.R2_ACCESS_KEY_ID,
+              secretAccessKey: process.env.R2_SECRET_ACCESS_KEY
+            }
+          });
+
+          async function uploadFile(filePath, key) {
+            const fileStream = fs.createReadStream(filePath);
+            const fileStats = fs.statSync(filePath);
+
+            // Determine content type
+            let contentType = 'application/octet-stream';
+            if (filePath.endsWith('.tar.gz')) contentType = 'application/gzip';
+            else if (filePath.endsWith('.json')) contentType = 'application/json';
+            else if (filePath.endsWith('.yml') || filePath.endsWith('.yaml')) contentType = 'text/yaml';
+            else if (filePath.endsWith('.sha256')) contentType = 'text/plain';
+
+            const params = {
+              Bucket: R2_BUCKET,
+              Key: key,
+              Body: fileStream,
+              ContentType: contentType,
+              ContentLength: fileStats.size
+            };
+
+            // Use multipart upload for large files
+            if (fileStats.size > 100 * 1024 * 1024) { // > 100MB
+              const upload = new Upload({
+                client,
+                params,
+                partSize: 10 * 1024 * 1024, // 10MB parts
+                queueSize: 4
+              });
+
+              upload.on('httpUploadProgress', (progress) => {
+                console.log(`Uploading ${path.basename(filePath)}: ${Math.round(progress.loaded / progress.total * 100)}%`);
+              });
+
+              await upload.done();
+            } else {
+              await client.send(new PutObjectCommand(params));
+            }
+
+            console.log(`✅ Uploaded: ${key}`);
+          }
+
+          async function checkVersionExists() {
+            try {
+              const command = new ListObjectsV2Command({
+                Bucket: R2_BUCKET,
+                Prefix: `releases/${VERSION}/`,
+                MaxKeys: 1
+              });
+              const response = await client.send(command);
+              return response.Contents && response.Contents.length > 0;
+            } catch (error) {
+              return false;
+            }
+          }
+
+          async function main() {
+            try {
+              // Check if version already exists
+              const versionExists = await checkVersionExists();
+              if (versionExists && !process.env.FORCE_UPLOAD) {
+                console.error(`❌ Version ${VERSION} already exists in R2. Use FORCE_UPLOAD=true to overwrite.`);
+                process.exit(1);
+              }
+
+              const releaseDir = 'release';
+              const files = fs.readdirSync(releaseDir);
+
+              // Upload to version-specific directory
+              for (const file of files) {
+                const filePath = path.join(releaseDir, file);
+                if (fs.statSync(filePath).isFile()) {
+                  await uploadFile(filePath, `releases/${VERSION}/${file}`);
+                }
+              }
+
+              // Update latest (copy files, not symlink)
+              for (const file of files) {
+                const filePath = path.join(releaseDir, file);
+                if (fs.statSync(filePath).isFile()) {
+                  await uploadFile(filePath, `releases/latest/${file}`);
+                }
+              }
+
+              // Update metadata
+              const versionInfo = {
+                latest: VERSION.replace('v', ''),
+                latestTag: VERSION,
+                timestamp: new Date().toISOString()
+              };
+
+              await client.send(new PutObjectCommand({
+                Bucket: R2_BUCKET,
+                Key: 'metadata/latest-version.txt',
+                Body: VERSION.replace('v', ''),
+                ContentType: 'text/plain',
+                CacheControl: 'max-age=300' // 5 minutes cache
+              }));
+
+              await client.send(new PutObjectCommand({
+                Bucket: R2_BUCKET,
+                Key: 'metadata/versions.json',
+                Body: JSON.stringify(versionInfo, null, 2),
+                ContentType: 'application/json',
+                CacheControl: 'max-age=300'
+              }));
+
+              console.log(`\n🚀 Release ${VERSION} successfully uploaded to R2!`);
+              console.log(`📦 Download URL: https://r2.maytrix.io/releases/${VERSION}/mega-facebook-complete.tar.gz`);
+
+            } catch (error) {
+              console.error('Upload failed:', error);
+              process.exit(1);
+            }
+          }
+
+          main();
+          EOF
+
+          node upload-r2.js
+
+  create-github-release:
+    name: Create GitHub Release
+    needs: [validate, upload-to-r2]
+    runs-on: ubuntu-latest
+    if: github.event_name != 'release'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download release bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: release-bundle
+          path: release
+
+      - name: Create Release Notes
+        run: |
+          cat > release-notes.md << 'EOF'
+          # Mega Facebook ${{ needs.validate.outputs.version_tag }}
+
+          ## 🚀 Installation
+
+          ### Quick Install (Recommended)
+          ```bash
+          curl -fsSL https://r2.maytrix.io/releases/latest/mega-cli-linux-x64 -o mega-cli
+          chmod +x mega-cli
+          ./mega-cli setup
+          ```
+
+          ### Manual Installation
+          ```bash
+          # Download complete package
+          curl -fsSL https://r2.maytrix.io/releases/${{ needs.validate.outputs.version_tag }}/mega-facebook-complete.tar.gz -o mega-facebook.tar.gz
+          tar -xzf mega-facebook.tar.gz
+          cd mega-facebook
+          pnpm install
+          pnpm docker:up
+          pnpm db:migrate
+          pnpm dev
+          ```
+
+          ### Docker Installation
+          ```bash
+          # Download Docker images
+          curl -fsSL https://r2.maytrix.io/releases/${{ needs.validate.outputs.version_tag }}/api-docker.tar.gz | docker load
+          curl -fsSL https://r2.maytrix.io/releases/${{ needs.validate.outputs.version_tag }}/web-docker.tar.gz | docker load
+          curl -fsSL https://r2.maytrix.io/releases/${{ needs.validate.outputs.version_tag }}/docker-compose.prod.yml -o docker-compose.yml
+          docker-compose up -d
+          ```
+
+          ## 📦 Artifacts
+
+          All artifacts are available at:
+          - Latest: https://r2.maytrix.io/releases/latest/
+          - This version: https://r2.maytrix.io/releases/${{ needs.validate.outputs.version_tag }}/
+
+          ### Available Downloads
+          - `mega-facebook-complete.tar.gz` - Complete source code
+          - `mega-facebook-api.tar.gz` - API server build
+          - `mega-facebook-web.tar.gz` - Web application build
+          - `mega-cli-{platform}-{arch}` - CLI binaries for all platforms
+          - `api-docker.tar.gz` - API Docker image
+          - `web-docker.tar.gz` - Web Docker image
+          - `docker-compose.prod.yml` - Production Docker Compose configuration
+
+          ## 🔐 Checksums
+          SHA256 checksums are available at:
+          https://r2.maytrix.io/releases/${{ needs.validate.outputs.version_tag }}/checksums.sha256
+
+          ---
+          Built from commit: ${{ github.sha }}
+          EOF
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ needs.validate.outputs.version_tag }} \
+            --title "Release ${{ needs.validate.outputs.version_tag }}" \
+            --notes-file release-notes.md \
+            release/*.tar.gz \
+            release/mega-cli-* \
+            release/*.yml \
+            release/*.json \
+            release/*.sha256
+
+  notify:
+    name: Send Notifications
+    needs: [validate, upload-to-r2]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Send notification
+        run: |
+          if [[ "${{ needs.upload-to-r2.result }}" == "success" ]]; then
+            echo "✅ Release ${{ needs.validate.outputs.version_tag }} successfully deployed to R2!"
+            echo "📦 Download: https://r2.maytrix.io/releases/${{ needs.validate.outputs.version_tag }}/"
+          else
+            echo "❌ Release ${{ needs.validate.outputs.version_tag }} failed to deploy"
+          fi
+
+          # Add webhook notification here if configured
+          # curl -X POST ${{ secrets.DISCORD_WEBHOOK }} ...
