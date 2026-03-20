@@ -1,3 +1,5 @@
+# Development Docker Compose Configuration
+# For production deployment, use docker-compose.prod.yml
 version: '3.8'
 
 services:
@@ -5,11 +7,12 @@ services:
     image: postgres:16-alpine
     container_name: mega_postgres
     environment:
+      # Development credentials - DO NOT use in production
       POSTGRES_USER: mega
       POSTGRES_PASSWORD: mega_secret
       POSTGRES_DB: mega_facebook
     ports:
-      - '5432:5432'
+      - '5432:5432'  # Exposed for development - secured in production
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -65,6 +68,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  # Optional: Migrations runner service (for docker-compose up)
+  # Uncomment if you want automatic migrations when using docker-compose
+  # migrations:
+  #   image: node:20-alpine
+  #   container_name: mega_migrations
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     DATABASE_URL: postgresql://mega:mega_secret@postgres:5432/mega_facebook
+  #     SEED_ON_START: 'true'  # Set to true for auto-seeding
+  #   volumes:
+  #     - ./apps/api:/app
+  #     - ./docker/scripts/run-migrations.sh:/app/run-migrations.sh
+  #   working_dir: /app
+  #   command: sh /app/run-migrations.sh
 
 volumes:
   postgres_data:
