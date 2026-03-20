@@ -1,33 +1,35 @@
-# Mega Facebook
+# AutoNow FB
 
-Social networking platform built with a modern monorepo architecture.
+Next-generation social platform built with modern monorepo architecture.
 
-## Tech Stack
+## 🚀 Quick Start
 
-- **Monorepo**: Turborepo + pnpm workspaces
-- **API**: NestJS 10 + Prisma ORM + PostgreSQL 16
-- **Web**: Next.js 14 + React 18 + Tailwind CSS
-- **Infrastructure**: Docker Compose (PostgreSQL, Redis, MinIO, Elasticsearch)
-- **CI/CD**: GitHub Actions
-
-## 🚀 Quick Start - One-Click Install
+### Option 1: Download from Cloud (Recommended)
 
 ```bash
-# Install and run with our CLI tool
-npx @mega/cli setup
+# Download and install latest version
+npx autonow-fb install
 
-# That's it! Your platform is running 🎉
+# Then run setup
+autonow-fb setup
+```
+
+### Option 2: Interactive Setup with CLI
+
+```bash
+# Run the interactive setup wizard
+npx autonow-fb setup
 ```
 
 Or install the CLI globally for easier access:
 
 ```bash
-npm install -g @mega/cli
-mega-cli setup
+npm install -g autonow-fb
+autonow-fb setup
 ```
 
 The CLI will automatically:
-- ✅ Check system requirements
+- ✅ Check Node.js and Docker requirements
 - ✅ Clone/update the repository
 - ✅ Install dependencies
 - ✅ Generate environment files
@@ -37,30 +39,43 @@ The CLI will automatically:
 - ✅ Seed sample data
 - ✅ Provide test accounts
 
-## Getting Started (Manual Setup)
+## Tech Stack
 
-### Prerequisites
+- **Monorepo**: Turborepo + pnpm workspaces
+- **API**: NestJS 10 + Prisma ORM + PostgreSQL 16
+- **Web**: Next.js 14 + React 18 + Tailwind CSS
+- **Infrastructure**: Docker Compose (PostgreSQL, Redis, MinIO, Elasticsearch)
+- **CI/CD**: GitHub Actions + Cloudflare R2
+- **CLI**: AutoNow FB CLI for easy setup and management
+
+## Manual Setup
+
+### System Requirements
 
 - Node.js 20+
 - pnpm 9+
 - Docker & Docker Compose
 
-### Manual Setup with Automated Migrations & Seeding
+### Installation Steps
 
 ```bash
+# Clone repository
+git clone https://github.com/sherlock-126/mega_facebook.git
+cd mega_facebook
+
 # Install dependencies
 pnpm install
 
 # Copy environment variables
 cp .env.example .env
 
-# Start infrastructure (auto-runs migrations)
+# Start infrastructure (auto-runs migrations in Docker)
 pnpm docker:up
 
 # Generate Prisma client
 pnpm db:generate
 
-# Run database migrations (if not using Docker)
+# Run database migrations (if not using Docker auto-migration)
 pnpm db:migrate
 
 # Seed the database with sample data
@@ -72,154 +87,112 @@ pnpm --filter api seed -- --full       # Full demo dataset
 pnpm dev
 ```
 
-### Automated Features
+## 🌐 Access URLs
 
-The project includes automatic database setup:
-- **Auto-migrations**: Migrations run automatically when Docker containers start
-- **Flexible seeding**: Three seeding modes for different environments
-- **Test accounts**: Pre-configured user accounts for testing
+- **Web App**: http://localhost:3000
+- **API**: http://localhost:3001/api-docs
+- **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin)
 
-### Default Test Accounts
-
-After seeding, you can log in with these accounts:
-
-| Account | Email | Password |
-| ------- | ----- | -------- |
-| Admin | admin@mega.dev | Admin123! |
-| User 1 | user1@mega.dev | Test1234! |
-| User 2 | user2@mega.dev | Test1234! |
-| User 3 | user3@mega.dev | Test1234! |
-| User 4 | user4@mega.dev | Test1234! |
-| User 5 | user5@mega.dev | Test1234! |
-
-### Ports
-
-| Service       | Port |
-| ------------- | ---- |
-| Next.js Web   | 3000 |
-| NestJS API    | 3001 |
-| PostgreSQL    | 5432 |
-| Redis         | 6379 |
-| MinIO         | 9000 |
-| MinIO Console | 9001 |
-| Elasticsearch | 9200 |
-
-## Project Structure
+## 📦 Project Structure
 
 ```
-mega-facebook/
+mega_facebook/
 ├── apps/
-│   ├── api/          # NestJS API server
-│   └── web/          # Next.js web application
+│   ├── api/          # NestJS API backend
+│   └── web/          # Next.js frontend
 ├── packages/
-│   ├── shared/       # Shared types and utilities
+│   ├── cli/          # AutoNow FB CLI tool
+│   ├── shared/       # Shared types & utilities
 │   └── ui/           # Shared UI components
-├── docker/           # Docker Compose configurations
-└── .github/          # CI/CD workflows
+├── docker/           # Docker configurations
+└── scripts/          # Build & deployment scripts
 ```
 
-## Scripts
+## 🔑 Test Accounts
+
+After seeding the database, use these accounts:
+
+**Admin:**
+- Email: admin@example.com
+- Password: admin123
+
+**Regular Users:**
+- john.doe@example.com / password123
+- jane.smith@example.com / password123
+- mike.johnson@example.com / password123
+
+## 📚 Available Commands
 
 ```bash
-pnpm dev          # Start all dev servers
-pnpm build        # Build all packages
-pnpm test         # Run all tests
-pnpm lint         # Lint all packages
-pnpm format       # Format all files
-pnpm docker:up    # Start Docker services
-pnpm docker:down  # Stop Docker services
-pnpm db:migrate   # Run database migrations
-pnpm db:seed      # Seed database with sample data
+# CLI Commands
+autonow-fb               # Interactive setup wizard
+autonow-fb doctor        # Check system health
+autonow-fb reset         # Reset environment
+autonow-fb install       # Download from cloud
+autonow-fb update        # Update to latest version
+autonow-fb start         # Start all services
+autonow-fb stop          # Stop all services
+autonow-fb logs          # View service logs
+autonow-fb seed          # Generate sample data
+
+# Development Commands
+pnpm dev                 # Start development servers
+pnpm build               # Build all packages
+pnpm lint                # Run linting
+pnpm test                # Run tests
+pnpm db:migrate          # Run database migrations
+pnpm db:seed             # Seed database
+pnpm docker:up           # Start Docker services
+pnpm docker:down         # Stop Docker services
 ```
 
-## Database Seeding
+## 🚀 Production Deployment
 
-The project includes a flexible seeding system with three modes:
-
-### 1. Admin Only Mode (`--admin-only`)
-- Creates only the admin account
-- Ideal for production environments
-- Minimal data footprint
-
-### 2. Sample Mode (default)
-- Creates admin + 5 test users
-- Adds sample posts, friendships, messages
-- Perfect for development and testing
-
-### 3. Full Mode (`--full`)
-- Creates 20+ users with realistic profiles
-- Generates extensive social network
-- Includes posts, comments, reactions, messages
-- Best for demos and load testing
+### Using Cloudflare R2 Releases
 
 ```bash
-# Run seeding with different modes
-cd apps/api
-npm run seed              # Sample data (default)
-npm run seed -- --admin-only  # Only admin account
-npm run seed -- --full       # Complete demo dataset
-npm run seed -- --force      # Re-seed even if data exists
-```
+# Download latest release
+autonow-fb install --version latest
 
-## Production Deployment
+# Or specific version
+autonow-fb install --version 1.0.0
+```
 
 ### Docker Production Setup
 
-This project includes production-ready Docker configurations with:
-- Multi-stage builds for optimized image sizes
-- Security hardening for all services
-- Nginx reverse proxy with SSL/TLS support
-- Health checks and service dependencies
-- Resource limits and restart policies
-- **Automatic database migrations on startup**
-- **Optional admin account creation**
-
-#### Quick Start
-
 ```bash
-# Copy production environment template
-cp docker/.env.prod.example docker/.env.prod
-
-# Edit with your production values
-nano docker/.env.prod
-
-# Build production images
-DOCKER_BUILDKIT=1 docker compose -f docker/docker-compose.prod.yml build
-
-# Start all services (migrations run automatically)
-docker compose -f docker/docker-compose.prod.yml up -d
-
-# Optional: Create admin account if not done automatically
-docker compose -f docker/docker-compose.prod.yml exec api npm run seed -- --admin-only
+# Use production Docker Compose
+docker-compose -f docker/docker-compose.prod.yml up -d
 ```
 
-#### Automatic Migration System
+## 🛠️ Troubleshooting
 
-The production setup includes an init container that:
-1. Waits for PostgreSQL to be ready
-2. Runs all pending Prisma migrations
-3. Optionally creates an admin account (if `SEED_ADMIN=true`)
-4. Exits successfully, allowing the API to start
+Run the doctor command to diagnose issues:
 
-This ensures your database is always up-to-date without manual intervention.
+```bash
+autonow-fb doctor
+```
 
-For detailed deployment instructions, see [docker/README.md](docker/README.md).
+Common issues:
+- **Port conflicts**: Ensure ports 3000, 3001, 5432, 6379, 9000, 9200 are free
+- **Docker not running**: Start Docker Desktop or Docker daemon
+- **Node version**: Ensure Node.js 20+ is installed
+- **Database connection**: Check PostgreSQL is running and accessible
 
-### Production Architecture
+## 🤝 Contributing
 
-- **Nginx**: Reverse proxy (ports 80/443) → routes to API/Web
-- **API**: NestJS backend (internal port 3001)
-- **Web**: Next.js frontend (internal port 3000)
-- **PostgreSQL**: Primary database with optimizations
-- **Redis**: Cache with password protection
-- **MinIO**: Object storage with secure access
-- **Elasticsearch**: Search engine with authentication
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-### Security Features
+## 📄 License
 
-- Non-root users in containers
-- Network isolation with Docker networks
-- Environment-based secrets management
-- Rate limiting and CORS configuration
-- SSL/TLS termination at Nginx
-- Health checks for all services
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## 🔗 Links
+
+- [Documentation](https://github.com/sherlock-126/mega_facebook#readme)
+- [Issues](https://github.com/sherlock-126/mega_facebook/issues)
+- [Releases](https://github.com/sherlock-126/mega_facebook/releases)

@@ -1,0 +1,10 @@
+{
+  "name": "github-scripts",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "GitHub Actions scripts for AutoNow FB CI/CD",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0"
+  }
+}

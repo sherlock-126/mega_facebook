@@ -1,11 +1,11 @@
 {
-  "name": "@mega/cli",
+  "name": "autonow-fb",
   "version": "1.0.0",
-  "description": "CLI tool for quick setup and management of Mega Facebook platform",
+  "description": "CLI tool for quick setup and management of AutoNow FB platform",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
-    "mega-cli": "./dist/cli.js"
+    "autonow-fb": "./dist/cli.js"
   },
   "files": [
     "dist",
@@ -24,14 +24,14 @@
   },
   "keywords": [
     "cli",
-    "mega-facebook",
+    "autonow-fb",
     "setup",
     "docker",
     "monorepo",
     "social-network",
     "deployment"
   ],
-  "author": "Mega Facebook Team",
+  "author": "AutoNow FB Team",
   "license": "MIT",
   "homepage": "https://github.com/sherlock-126/mega_facebook#readme",
   "repository": {

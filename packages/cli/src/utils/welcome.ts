@@ -4,17 +4,18 @@ import terminalLink from 'terminal-link';
 import { logger } from './logger.js';
 
 export function showWelcome(): void {
-  const title = chalk.bold.cyan('🚀 Mega Facebook CLI');
+  const title = chalk.bold.cyan('🚀 AutoNow FB');
   const version = chalk.gray('v1.0.0');
-  const description = chalk.white('Quick setup and management for your social platform');
+  const description = chalk.white('Next-generation social platform');
 
   const content = `${title} ${version}
 ${description}
 
 ${chalk.yellow('Getting Started:')}
-  ${chalk.cyan('mega-cli')}         Interactive setup wizard
-  ${chalk.cyan('mega-cli doctor')}  Check system requirements
-  ${chalk.cyan('mega-cli --help')}  Show all commands
+  ${chalk.cyan('autonow-fb')}         Interactive setup
+  ${chalk.cyan('autonow-fb install')}  Download from cloud
+  ${chalk.cyan('autonow-fb doctor')}   Check system health
+  ${chalk.cyan('autonow-fb --help')}   Show all commands
 
 ${chalk.yellow('Resources:')}
   ${terminalLink('Documentation', 'https://github.com/sherlock-126/mega_facebook#readme')}
