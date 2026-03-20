@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
-	"github.com/sherlock-126/mega_facebook/internal/selectors"
 )
 
 func TestNewAutomation_NilPage(t *testing.T) {
@@ -200,7 +199,7 @@ func TestPageLoadDelay_Randomness(t *testing.T) {
 
 // --- XPath builder test ---
 
-func TestXPathByText_FromSelectors(t *testing.T) {
+func TestBuildXPathByText(t *testing.T) {
 	tests := []struct {
 		text string
 		tag  string
@@ -213,9 +212,9 @@ func TestXPathByText_FromSelectors(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := selectors.XPathByText(tt.text, tt.tag)
+		got := buildXPathByText(tt.text, tt.tag)
 		if got != tt.want {
-			t.Errorf("selectors.XPathByText(%q, %q) = %q, want %q", tt.text, tt.tag, got, tt.want)
+			t.Errorf("buildXPathByText(%q, %q) = %q, want %q", tt.text, tt.tag, got, tt.want)
 		}
 	}
 }

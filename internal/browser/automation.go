@@ -11,7 +11,6 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/proto"
-	"github.com/sherlock-126/mega_facebook/internal/selectors"
 )
 
 const (
@@ -201,7 +200,7 @@ func (a *Automation) FindByText(text, tag string) (*rod.Element, error) {
 		return nil, fmt.Errorf("cannot find by text: empty text")
 	}
 
-	xpath := selectors.XPathByText(text, tag)
+	xpath := buildXPathByText(text, tag)
 	slog.Info("finding by text", "text", text, "tag", tag, "xpath", xpath)
 
 	el, err := a.page.Timeout(a.elementTimeout).ElementX(xpath)
@@ -211,6 +210,15 @@ func (a *Automation) FindByText(text, tag string) (*rod.Element, error) {
 
 	slog.Info("found element by text", "text", text, "tag", tag)
 	return el, nil
+}
+
+// buildXPathByText builds an XPath expression to find elements by visible text content.
+// If tag is empty, searches all elements.
+func buildXPathByText(text, tag string) string {
+	if tag == "" {
+		tag = "*"
+	}
+	return fmt.Sprintf("//%s[contains(text(), %q)]", tag, text)
 }
 
 // clickDelay returns a randomized duration between 800-2500ms for use after clicks.
