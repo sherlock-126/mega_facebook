@@ -9,6 +9,17 @@ import (
 	"github.com/go-rod/rod"
 )
 
+func TestNewAutomation_HasHumanizer(t *testing.T) {
+	page := &rod.Page{}
+	a, err := NewAutomation(page)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if a.humanizer == nil {
+		t.Fatal("expected humanizer to be initialized")
+	}
+}
+
 func TestNewAutomation_NilPage(t *testing.T) {
 	_, err := NewAutomation(nil)
 	if err == nil {
@@ -140,60 +151,6 @@ func TestFindByText_EmptyText(t *testing.T) {
 	}
 	if got := err.Error(); got != "cannot find by text: empty text" {
 		t.Fatalf("unexpected error: %s", got)
-	}
-}
-
-// --- Delay range tests ---
-
-func TestClickDelay_Range(t *testing.T) {
-	for i := 0; i < 1000; i++ {
-		d := clickDelay()
-		ms := d.Milliseconds()
-		if ms < int64(clickDelayMin) || ms > int64(clickDelayMax) {
-			t.Fatalf("clickDelay() = %dms, want [%d, %d]", ms, clickDelayMin, clickDelayMax)
-		}
-	}
-}
-
-func TestPageLoadDelay_Range(t *testing.T) {
-	for i := 0; i < 1000; i++ {
-		d := pageLoadDelay()
-		ms := d.Milliseconds()
-		if ms < int64(pageLoadDelayMin) || ms > int64(pageLoadDelayMax) {
-			t.Fatalf("pageLoadDelay() = %dms, want [%d, %d]", ms, pageLoadDelayMin, pageLoadDelayMax)
-		}
-	}
-}
-
-func TestTypeDelay_Range(t *testing.T) {
-	for i := 0; i < 1000; i++ {
-		d := typeDelay()
-		ms := d.Milliseconds()
-		if ms < int64(typeDelayMin) || ms > int64(typeDelayMax) {
-			t.Fatalf("typeDelay() = %dms, want [%d, %d]", ms, typeDelayMin, typeDelayMax)
-		}
-	}
-}
-
-// --- Delay randomness tests ---
-
-func TestClickDelay_Randomness(t *testing.T) {
-	values := make(map[int64]bool)
-	for i := 0; i < 100; i++ {
-		values[clickDelay().Milliseconds()] = true
-	}
-	if len(values) < 2 {
-		t.Fatal("clickDelay() appears to return constant values")
-	}
-}
-
-func TestPageLoadDelay_Randomness(t *testing.T) {
-	values := make(map[int64]bool)
-	for i := 0; i < 100; i++ {
-		values[pageLoadDelay().Milliseconds()] = true
-	}
-	if len(values) < 2 {
-		t.Fatal("pageLoadDelay() appears to return constant values")
 	}
 }
 
