@@ -18,7 +18,11 @@
     "docker:down": "docker compose -f docker/docker-compose.yml down",
     "cli:build": "pnpm --filter @mega/cli build",
     "cli:dev": "pnpm --filter @mega/cli dev",
-    "cli:publish": "pnpm --filter @mega/cli publish"
+    "cli:publish": "pnpm --filter @mega/cli publish",
+    "release:build": "node scripts/build-release.js",
+    "release:upload": "node scripts/upload-r2.js",
+    "release": "npm run release:build && npm run release:upload",
+    "docker:build": "docker build -f apps/api/Dockerfile.prod -t mega-facebook-api . && docker build -f apps/web/Dockerfile.prod -t mega-facebook-web ."
   },
   "devDependencies": {
     "prettier": "^3.2.0",

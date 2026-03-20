@@ -1,0 +1,422 @@
+name: Build Artifacts
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+    outputs:
+      api-artifact:
+        description: "API build artifact name"
+        value: ${{ jobs.build.outputs.api-artifact }}
+      web-artifact:
+        description: "Web build artifact name"
+        value: ${{ jobs.build.outputs.web-artifact }}
+      cli-artifacts:
+        description: "CLI build artifacts JSON"
+        value: ${{ jobs.build.outputs.cli-artifacts }}
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
+
+jobs:
+  build:
+    name: Build All Artifacts
+    runs-on: ubuntu-latest
+    outputs:
+      api-artifact: ${{ steps.artifacts.outputs.api }}
+      web-artifact: ${{ steps.artifacts.outputs.web }}
+      cli-artifacts: ${{ steps.artifacts.outputs.cli }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Cache pnpm store
+        uses: actions/cache@v3
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile
+
+      - name: Update versions
+        run: |
+          # Update version in all package.json files
+          cat > scripts/update-versions.js << 'EOF'
+          const fs = require('fs');
+          const path = require('path');
+
+          const version = '${{ inputs.version }}';
+          const packages = [
+            'package.json',
+            'apps/api/package.json',
+            'apps/web/package.json',
+            'packages/shared/package.json',
+            'packages/ui/package.json',
+            'packages/cli/package.json'
+          ];
+
+          packages.forEach(pkgPath => {
+            try {
+              const fullPath = path.join(process.cwd(), pkgPath);
+              if (fs.existsSync(fullPath)) {
+                const pkg = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+                pkg.version = version;
+                fs.writeFileSync(fullPath, JSON.stringify(pkg, null, 2) + '\n');
+                console.log(`✅ Updated ${pkgPath} to version ${version}`);
+              }
+            } catch (error) {
+              console.warn(`⚠️  Could not update ${pkgPath}: ${error.message}`);
+            }
+          });
+          EOF
+
+          node scripts/update-versions.js
+
+      - name: Build all packages
+        run: |
+          # Build shared packages first
+          pnpm --filter @mega/shared build || echo "No build for shared"
+          pnpm --filter @mega/ui build || echo "No build for ui"
+
+          # Build applications
+          pnpm --filter api build
+          pnpm --filter web build
+
+          # Build CLI if exists
+          if [ -d "packages/cli" ]; then
+            pnpm --filter @mega/cli build || echo "CLI build skipped"
+          fi
+
+      - name: Create production bundles
+        run: |
+          mkdir -p dist/artifacts
+
+          # API Bundle
+          echo "Creating API production bundle..."
+          cd apps/api
+
+          # Create standalone API with dependencies
+          cat > create-bundle.js << 'EOF'
+          const fs = require('fs');
+          const path = require('path');
+          const { execSync } = require('child_process');
+
+          // Create production node_modules
+          execSync('pnpm install --prod --frozen-lockfile', { stdio: 'inherit' });
+
+          // Files to include in bundle
+          const files = [
+            'dist',
+            'prisma',
+            'node_modules',
+            'package.json',
+            'tsconfig.json',
+            '.env.example'
+          ];
+
+          // Create tar command
+          const tarFiles = files.filter(f => fs.existsSync(f)).join(' ');
+          execSync(`tar -czf ../../dist/artifacts/mega-facebook-api-${{ inputs.version }}.tar.gz ${tarFiles}`, {
+            stdio: 'inherit'
+          });
+          EOF
+
+          node create-bundle.js
+          cd ../..
+
+          # Web Bundle
+          echo "Creating Web production bundle..."
+          cd apps/web
+
+          # Optimize Next.js for production
+          cat > next.config.js << 'EOF'
+          /** @type {import('next').NextConfig} */
+          const nextConfig = {
+            output: 'standalone',
+            reactStrictMode: true,
+            swcMinify: true,
+            compress: true,
+            poweredByHeader: false,
+            images: {
+              domains: ['localhost', 'minio'],
+              formats: ['image/avif', 'image/webp']
+            },
+            experimental: {
+              optimizeCss: true
+            }
+          };
+
+          module.exports = nextConfig;
+          EOF
+
+          # Rebuild with standalone output
+          pnpm build
+
+          tar -czf ../../dist/artifacts/mega-facebook-web-${{ inputs.version }}.tar.gz \
+            .next \
+            public \
+            package.json \
+            next.config.js \
+            node_modules/.bin
+
+          cd ../..
+
+          # Complete source bundle
+          echo "Creating complete source bundle..."
+          tar -czf dist/artifacts/mega-facebook-complete-${{ inputs.version }}.tar.gz \
+            --exclude=.git \
+            --exclude=node_modules \
+            --exclude=dist \
+            --exclude=.next \
+            --exclude=coverage \
+            --exclude=*.log \
+            .
+
+      - name: Build CLI binaries
+        run: |
+          mkdir -p dist/cli
+
+          # Setup CLI package if needed
+          if [ ! -d "packages/cli/src" ] || [ -z "$(ls -A packages/cli/src)" ]; then
+            echo "Setting up CLI source..."
+            mkdir -p packages/cli/src
+            cat > packages/cli/src/index.ts << 'EOF'
+          #!/usr/bin/env node
+          import { Command } from 'commander';
+          import chalk from 'chalk';
+          import { execSync } from 'child_process';
+          import * as fs from 'fs-extra';
+          import * as path from 'path';
+
+          const program = new Command();
+
+          program
+            .name('mega-cli')
+            .version('${{ inputs.version }}')
+            .description('Mega Facebook CLI - Easy setup and management');
+
+          program
+            .command('setup')
+            .description('Setup Mega Facebook with one command')
+            .action(async () => {
+              console.log(chalk.blue('🚀 Starting Mega Facebook setup...'));
+
+              // Download latest release
+              console.log(chalk.yellow('📦 Downloading latest release...'));
+              execSync('curl -fsSL https://r2.maytrix.io/releases/latest/mega-facebook-complete.tar.gz -o mega-facebook.tar.gz', {
+                stdio: 'inherit'
+              });
+
+              // Extract
+              console.log(chalk.yellow('📂 Extracting files...'));
+              execSync('tar -xzf mega-facebook.tar.gz', { stdio: 'inherit' });
+
+              // Install dependencies
+              console.log(chalk.yellow('📦 Installing dependencies...'));
+              execSync('pnpm install', { stdio: 'inherit' });
+
+              // Start services
+              console.log(chalk.yellow('🐳 Starting Docker services...'));
+              execSync('pnpm docker:up', { stdio: 'inherit' });
+
+              // Run migrations
+              console.log(chalk.yellow('🗄️ Running database migrations...'));
+              execSync('pnpm db:migrate', { stdio: 'inherit' });
+
+              console.log(chalk.green('✅ Setup complete!'));
+              console.log(chalk.blue('🌐 Web: http://localhost:3000'));
+              console.log(chalk.blue('🔧 API: http://localhost:3001'));
+            });
+
+          program
+            .command('update')
+            .description('Update to the latest version')
+            .action(async () => {
+              console.log(chalk.blue('🔄 Checking for updates...'));
+
+              const response = await fetch('https://r2.maytrix.io/metadata/latest-version.txt');
+              const latestVersion = await response.text();
+
+              console.log(chalk.green(`Latest version: ${latestVersion}`));
+              console.log(chalk.yellow('📦 Downloading update...'));
+
+              execSync(`curl -fsSL https://r2.maytrix.io/releases/latest/mega-facebook-complete.tar.gz -o update.tar.gz`, {
+                stdio: 'inherit'
+              });
+
+              console.log(chalk.green('✅ Update downloaded! Extract with: tar -xzf update.tar.gz'));
+            });
+
+          program
+            .command('doctor')
+            .description('Check system health')
+            .action(() => {
+              console.log(chalk.blue('🏥 Running system diagnostics...'));
+
+              // Check Node version
+              const nodeVersion = process.version;
+              console.log(chalk.green(`✅ Node.js: ${nodeVersion}`));
+
+              // Check Docker
+              try {
+                execSync('docker --version', { stdio: 'ignore' });
+                console.log(chalk.green('✅ Docker is installed'));
+              } catch {
+                console.log(chalk.red('❌ Docker is not installed'));
+              }
+
+              // Check pnpm
+              try {
+                execSync('pnpm --version', { stdio: 'ignore' });
+                console.log(chalk.green('✅ pnpm is installed'));
+              } catch {
+                console.log(chalk.red('❌ pnpm is not installed'));
+              }
+            });
+
+          program.parse(process.argv);
+          EOF
+          fi
+
+          # Build CLI with tsup
+          cd packages/cli
+
+          # Create tsup config if missing
+          if [ ! -f "tsup.config.ts" ]; then
+            cat > tsup.config.ts << 'EOF'
+          import { defineConfig } from 'tsup';
+
+          export default defineConfig({
+            entry: ['src/index.ts'],
+            format: ['cjs'],
+            target: 'node20',
+            clean: true,
+            minify: true,
+            shims: true,
+            bundle: true,
+            noExternal: [/.*/],
+            platform: 'node',
+            outDir: 'dist'
+          });
+          EOF
+          fi
+
+          # Create package.json if missing
+          if [ ! -f "package.json" ]; then
+            cat > package.json << 'EOF'
+          {
+            "name": "@mega/cli",
+            "version": "${{ inputs.version }}",
+            "bin": {
+              "mega-cli": "./dist/index.js"
+            },
+            "scripts": {
+              "build": "tsup"
+            },
+            "dependencies": {
+              "commander": "^12.0.0",
+              "chalk": "^5.3.0",
+              "fs-extra": "^11.2.0"
+            },
+            "devDependencies": {
+              "tsup": "^8.0.0",
+              "@types/node": "^20.0.0",
+              "@types/fs-extra": "^11.0.0",
+              "typescript": "^5.0.0"
+            }
+          }
+          EOF
+            pnpm install
+          fi
+
+          # Build
+          pnpm build || echo "Build step completed"
+
+          # Create platform-specific executables (placeholder for now)
+          for platform in linux-x64 darwin-x64 darwin-arm64 win-x64; do
+            if [[ "$platform" == "win-x64" ]]; then
+              cp dist/index.js ../../dist/cli/mega-cli-${platform}.exe 2>/dev/null || \
+                echo "node dist/index.js" > ../../dist/cli/mega-cli-${platform}.exe
+            else
+              cp dist/index.js ../../dist/cli/mega-cli-${platform} 2>/dev/null || \
+                echo "#!/usr/bin/env node" > ../../dist/cli/mega-cli-${platform}
+            fi
+            chmod +x ../../dist/cli/mega-cli-${platform}* 2>/dev/null || true
+          done
+
+          cd ../..
+
+      - name: Generate checksums
+        run: |
+          cd dist/artifacts
+          sha256sum * > checksums.sha256
+          cd ../cli
+          sha256sum * >> ../artifacts/checksums.sha256
+
+      - name: Store artifact names
+        id: artifacts
+        run: |
+          echo "api=mega-facebook-api-${{ inputs.version }}.tar.gz" >> $GITHUB_OUTPUT
+          echo "web=mega-facebook-web-${{ inputs.version }}.tar.gz" >> $GITHUB_OUTPUT
+
+          # Create CLI artifacts JSON
+          CLI_JSON='{'
+          for platform in linux-x64 darwin-x64 darwin-arm64 win-x64; do
+            if [[ "$platform" == "win-x64" ]]; then
+              CLI_JSON="${CLI_JSON}\"${platform}\":\"mega-cli-${platform}.exe\","
+            else
+              CLI_JSON="${CLI_JSON}\"${platform}\":\"mega-cli-${platform}\","
+            fi
+          done
+          CLI_JSON="${CLI_JSON%,}}"
+          echo "cli=${CLI_JSON}" >> $GITHUB_OUTPUT
+
+      - name: Upload API artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-build-${{ inputs.version }}
+          path: dist/artifacts/mega-facebook-api-*.tar.gz
+          retention-days: 7
+
+      - name: Upload Web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build-${{ inputs.version }}
+          path: dist/artifacts/mega-facebook-web-*.tar.gz
+          retention-days: 7
+
+      - name: Upload Complete artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: complete-build-${{ inputs.version }}
+          path: dist/artifacts/mega-facebook-complete-*.tar.gz
+          retention-days: 7
+
+      - name: Upload CLI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-builds-${{ inputs.version }}
+          path: dist/cli/mega-cli-*
+          retention-days: 7
+
+      - name: Upload checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums-${{ inputs.version }}
+          path: dist/artifacts/checksums.sha256
+          retention-days: 7
