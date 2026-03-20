@@ -100,12 +100,12 @@ jobs:
       - name: Create Web artifact
         run: |
           cd apps/web
-          tar -czf ../../web.tar.gz \
-            .next \
-            public \
-            package.json \
-            next.config.js \
-            tsconfig*.json
+          # Create list of files that exist
+          FILES=".next package.json"
+          [ -d public ] && FILES="$FILES public"
+          [ -f next.config.js ] && FILES="$FILES next.config.js"
+          [ -f tsconfig.json ] && FILES="$FILES tsconfig.json"
+          tar -czf ../../web.tar.gz $FILES
 
       - name: Generate checksums
         run: |
