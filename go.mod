@@ -7,6 +7,7 @@ require (
 	github.com/go-rod/stealth v0.4.9
 	github.com/pquerna/otp v1.4.0
 	github.com/spf13/cobra v1.10.2
+	go.uber.org/ratelimit v0.3.1
 )
 
 require (
