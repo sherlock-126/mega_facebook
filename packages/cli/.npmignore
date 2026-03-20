@@ -1,0 +1,16 @@
+src/
+*.ts
+*.tsx
+tsconfig.json
+tsup.config.ts
+jest.config.js
+.env
+.env.*
+node_modules/
+coverage/
+.turbo/
+*.log
+.DS_Store
+demos/*.cast
+demos/recordings/
+docs/drafts/

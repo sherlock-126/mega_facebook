@@ -1,6 +1,32 @@
-# Mega Facebook
+# AutoNow FB
 
-Social networking platform built with a modern monorepo architecture.
+Nền tảng mạng xã hội thế hệ mới với kiến trúc monorepo hiện đại.
+
+## 🚀 Cài đặt nhanh (Khuyến nghị)
+
+### Cách 1: Tải và cài đặt từ Cloud
+
+```bash
+# Tải và cài đặt phiên bản mới nhất
+npx autonow-fb install
+
+# Sau đó chạy setup
+autonow-fb setup
+```
+
+### Cách 2: Setup tự động với CLI
+
+```bash
+# Chạy trình cài đặt tương tác
+npx autonow-fb setup
+```
+
+CLI sẽ tự động:
+- ✅ Kiểm tra Node.js và Docker
+- ✅ Tạo file cấu hình .env
+- ✅ Khởi động các dịch vụ Docker
+- ✅ Chạy database migrations
+- ✅ Tạo dữ liệu mẫu
 
 ## Tech Stack
 
@@ -8,32 +34,39 @@ Social networking platform built with a modern monorepo architecture.
 - **API**: NestJS 10 + Prisma ORM + PostgreSQL 16
 - **Web**: Next.js 14 + React 18 + Tailwind CSS
 - **Infrastructure**: Docker Compose (PostgreSQL, Redis, MinIO, Elasticsearch)
-- **CI/CD**: GitHub Actions
+- **CI/CD**: GitHub Actions + Cloudflare R2
 
-## Getting Started
+## Cài đặt thủ công
 
-### Prerequisites
+### Yêu cầu hệ thống
 
 - Node.js 20+
 - pnpm 9+
 - Docker & Docker Compose
 
-### Setup
+### Các bước cài đặt
 
 ```bash
-# Install dependencies
+# Clone repository
+git clone https://github.com/sherlock-126/mega_facebook.git
+cd mega_facebook
+
+# Cài đặt dependencies
 pnpm install
 
 # Copy environment variables
 cp .env.example .env
 
-# Start infrastructure
+# Khởi động infrastructure
 pnpm docker:up
 
 # Generate Prisma client
 pnpm db:generate
 
-# Run development servers
+# Chạy migrations
+pnpm db:migrate
+
+# Chạy development servers
 pnpm dev
 ```
 
