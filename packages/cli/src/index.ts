@@ -78,44 +78,44 @@ program
     await versionCommand(options);
   });
 
-// Start command
-program
-  .command('start')
-  .description('Start all services')
-  .action(async () => {
-    const { startCommand } = await import('./commands/start.js');
-    await startCommand();
-  });
+// Start command - TODO: implement
+// program
+//   .command('start')
+//   .description('Start all services')
+//   .action(async () => {
+//     const { startCommand } = await import('./commands/start.js');
+//     await startCommand();
+//   });
 
-// Stop command
-program
-  .command('stop')
-  .description('Stop all services')
-  .action(async () => {
-    const { stopCommand } = await import('./commands/stop.js');
-    await stopCommand();
-  });
+// Stop command - TODO: implement
+// program
+//   .command('stop')
+//   .description('Stop all services')
+//   .action(async () => {
+//     const { stopCommand } = await import('./commands/stop.js');
+//     await stopCommand();
+//   });
 
-// Logs command
-program
-  .command('logs [service]')
-  .description('View service logs')
-  .action(async (service) => {
-    const { logsCommand } = await import('./commands/logs.js');
-    await logsCommand(service);
-  });
+// Logs command - TODO: implement
+// program
+//   .command('logs [service]')
+//   .description('View service logs')
+//   .action(async (service) => {
+//     const { logsCommand } = await import('./commands/logs.js');
+//     await logsCommand(service);
+//   });
 
-// Seed command
-program
-  .command('seed')
-  .description('Generate sample data')
-  .option('--admin-only', 'Create admin account only')
-  .option('--full', 'Create full demo dataset')
-  .option('--force', 'Overwrite existing data')
-  .action(async (options) => {
-    const { seedCommand } = await import('./commands/seed.js');
-    await seedCommand(options);
-  });
+// Seed command - TODO: implement
+// program
+//   .command('seed')
+//   .description('Generate sample data')
+//   .option('--admin-only', 'Create admin account only')
+//   .option('--full', 'Create full demo dataset')
+//   .option('--force', 'Overwrite existing data')
+//   .action(async (options) => {
+//     const { seedCommand } = await import('./commands/seed.js');
+//     await seedCommand(options);
+//   });
 
 // Parse arguments
 program.parse();

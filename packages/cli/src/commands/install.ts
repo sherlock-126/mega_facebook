@@ -4,7 +4,7 @@ import ora from 'ora';
 import axios from 'axios';
 import fs from 'fs-extra';
 import path from 'path';
-import tar from 'tar';
+import * as tar from 'tar';
 import crypto from 'crypto';
 import { confirm, text } from '@clack/prompts';
 import { logger } from '../utils/logger';

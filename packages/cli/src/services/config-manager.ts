@@ -16,6 +16,25 @@ export interface CliConfig {
   };
 }
 
+// Singleton instance
+let configManagerInstance: ConfigManager;
+
+function getConfigManager(): ConfigManager {
+  if (!configManagerInstance) {
+    configManagerInstance = new ConfigManager();
+  }
+  return configManagerInstance;
+}
+
+// Export functions for backward compatibility
+export function getConfig<K extends keyof CliConfig>(key: K): CliConfig[K] {
+  return getConfigManager().get(key);
+}
+
+export function setConfig<K extends keyof CliConfig>(key: K, value: CliConfig[K]): void {
+  getConfigManager().set(key, value);
+}
+
 export class ConfigManager {
   private store: Conf<CliConfig>;
   private configDir: string;

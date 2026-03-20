@@ -20,21 +20,24 @@ export default defineConfig({
     };
   },
   // For creating standalone executables
-  onSuccess: async () => {
-    const fs = require('fs');
-    const path = require('path');
+  async onSuccess() {
+    const { existsSync, chmodSync, copyFileSync } = await import('fs');
+    const { join, dirname } = await import('path');
+    const { fileURLToPath } = await import('url');
+
+    const __dirname = dirname(fileURLToPath(import.meta.url));
 
     // Make the output executable
-    const outputPath = path.join(__dirname, 'dist/index.js');
-    if (fs.existsSync(outputPath)) {
-      fs.chmodSync(outputPath, 0o755);
+    const outputPath = join(__dirname, 'dist/index.js');
+    if (existsSync(outputPath)) {
+      chmodSync(outputPath, 0o755);
     }
 
     // Create the cli.js entry point
-    const cliPath = path.join(__dirname, 'dist/cli.js');
-    if (fs.existsSync(outputPath) && !fs.existsSync(cliPath)) {
-      fs.copyFileSync(outputPath, cliPath);
-      fs.chmodSync(cliPath, 0o755);
+    const cliPath = join(__dirname, 'dist/cli.js');
+    if (existsSync(outputPath) && !existsSync(cliPath)) {
+      copyFileSync(outputPath, cliPath);
+      chmodSync(cliPath, 0o755);
     }
 
     console.log('✅ CLI build complete');
