@@ -35,6 +35,30 @@ var Submit = []string{
 	"button[name='submit[Continue]']",
 }
 
+// FriendSuggestion selectors identify "Add friend" buttons on the friend suggestions page.
+var FriendSuggestion = []string{
+	"button[aria-label='Add friend']",
+	"button[aria-label='Add Friend']",
+}
+
+// GroupSuggestion selectors identify "Join" buttons on the group discovery page.
+var GroupSuggestion = []string{
+	"button[aria-label='Join group']",
+	"button[aria-label='Join']",
+}
+
+// PostComposer selectors identify the post creation area on the feed.
+var PostComposer = []string{
+	"div[role='button'][aria-label*='on your mind']",
+	"div[role='button'][aria-label*='write something']",
+}
+
+// PostTextArea selectors identify the text input area in the post composer dialog.
+var PostTextArea = []string{
+	"div[role='textbox'][aria-label*='on your mind']",
+	"div[role='textbox'][contenteditable='true']",
+}
+
 // XPathByText builds an XPath expression to find elements by visible text content.
 // If tag is empty, it searches all elements ("*").
 // This is resilient to Facebook's hashed CSS classes since it matches on text.
